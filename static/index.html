@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 음성차팅 솔루션</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/thept_logo.png">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="background-blob blob-1"></div>
+    <div class="background-blob blob-2"></div>
+    
+    <div class="container">
+        <header>
+            <h1>AI 음성차팅 솔루션</h1>
+            <p>음성 녹음 파일을 업로드하면 AI가 자동으로 임상 차트와 환자 가이드를 작성합니다.</p>
+        </header>
+
+        <main>
+            <div class="glass-panel upload-section">
+                <form id="upload-form">
+                    <div class="form-group">
+                        <label for="profession">전문 직군 선택</label>
+                        <select id="profession" name="profession">
+                            <option value="pt" selected>물리치료 (PT)</option>
+                            <option value="ot">작업치료 (OT)</option>
+                            <option value="st">언어재활 (ST)</option>
+                            <option value="rehab">기타 재활</option>
+                        </select>
+                    </div>
+
+                    <div class="upload-grid">
+                        <div class="upload-item">
+                            <label class="item-label">
+                                1. 음성 파일 업로드
+                                <button type="button" id="open-guide-btn" class="text-link-btn">녹음 가이드 확인</button>
+                            </label>
+                            <div class="drop-zone" id="drop-zone">
+                                <span class="drop-zone__prompt">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                    <br/>음성 파일 선택
+                                </span>
+                                <input type="file" name="file" id="file-input" accept="audio/*" class="drop-zone__input">
+                            </div>
+                        </div>
+
+                        <div class="upload-item">
+                            <label class="item-label" for="memo-input">2. 수기기록 추가 (텍스트)</label>
+                            <textarea id="memo-input" name="memo" placeholder="수기로 작성한 핵심 내용을 여기에 직접 입력하세요..."></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" disabled>AI 분석 시작하기</button>
+                </form>
+
+                <div id="loading-indicator" class="hidden">
+                    <div class="spinner"></div>
+                    <p class="loading-text">AI가 음성을 분석하고 리포트를 생성 중입니다...<br/><small>(약 1~2분 소요될 수 있습니다)</small></p>
+                </div>
+            </div>
+
+            <div id="results-section" class="glass-panel hidden">
+                <div class="tabs-header">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="chart">임상 차트</button>
+                        <button class="tab-btn" data-tab="guide">환자 가이드</button>
+                        <button class="tab-btn" data-tab="transcript">녹취록</button>
+                    </div>
+                    <div class="actions">
+                        <button id="copy-btn" class="secondary-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            복사하기
+                        </button>
+                        <button id="download-csv-btn" class="secondary-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            CSV 저장
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tab-content active" id="tab-chart">
+                    <div id="chart-content" class="chart-container"></div>
+                </div>
+                <div class="tab-content" id="tab-guide">
+                    <div id="guide-content" class="markdown-body"></div>
+                </div>
+                <div class="tab-content" id="tab-transcript">
+                    <div id="transcript-content" class="text-body"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="sponsor-section">
+                <p class="sponsor-label">Sponsor</p>
+                <a href="http://www.thept.co.kr" target="_blank" rel="noopener noreferrer">
+                    <img src="/static/thept_logo.png" alt="THEPT Logo" class="sponsor-logo">
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 녹음 가이드 모달 -->
+    <div id="guide-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>📋 AI 분석 최적화 녹음 가이드</h3>
+                <button id="close-guide-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="guide-grid-modal">
+                    <section class="guide-item">
+                        <h4>1. 통증의 기본 특성 (Subjective)</h4>
+                        <p>진단의 방향성을 결정하는 필수 데이터입니다.</p>
+                        <ul>
+                            <li><strong>통증 부위/양상</strong>: 위치, 방사통 여부, 느낌(쑤심, 저림 등)</li>
+                            <li><strong>발병 기전</strong>: 급성/만성 여부, 외상 유무</li>
+                            <li><strong>통증 강도</strong>: VAS Score (0~10점)</li>
+                        </ul>
+                    </section>
+
+                    <section class="guide-item">
+                        <h4>2. 기능 및 움직임 (Movement)</h4>
+                        <p>움직임의 질과 기능적 불균형을 파악합니다.</p>
+                        <ul>
+                            <li><strong>악화/완화 요인</strong>: 통증을 유발하거나 줄이는 특정 동작/자세</li>
+                            <li><strong>24시간 패턴</strong>: 아침 강직감(염증성) vs 저녁 통증(기계적 스트레스)</li>
+                            <li><strong>가동 범위 (ROM)</strong>: 움직임 제한 및 끝느낌(End-feel)</li>
+                        </ul>
+                    </section>
+
+                    <section class="guide-item">
+                        <h4>3. 레드 플래그 (Red Flags)</h4>
+                        <p>즉시 개입이나 전원이 필요한 심각한 징후입니다.</p>
+                        <ul>
+                            <li><strong>신경학적 증상</strong>: 감각 이상(무딤), 근력 저하(힘 빠짐), 방사통</li>
+                            <li><strong>심각한 징후</strong>: 야간통(수면 방해), 대소변 조절 문제, 갑작스러운 체중 변화</li>
+                        </ul>
+                    </section>
+
+                    <section class="guide-item">
+                        <h4>4. 생활 습관 (Environment)</h4>
+                        <p>근본 원인 해결과 재발 방지를 위한 정보입니다.</p>
+                        <ul>
+                            <li><strong>직업/수면</strong>: 오래 유지하는 자세, 베개 높이 및 수면 자세</li>
+                            <li><strong>운동 습관</strong>: 정기적 운동 종류 및 운동 후 통증 변화</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
