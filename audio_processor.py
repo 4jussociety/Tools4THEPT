@@ -38,8 +38,10 @@ def process_audio(input_path: str, output_dir: str) -> str:
         "loudnorm",
     ])
 
+    FFMPEG_PATH = r"C:\Users\myrea\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe"
+    
     cmd = [
-        "ffmpeg", "-y",
+        FFMPEG_PATH, "-y",
         "-i", input_path,
         "-af", filters,
         "-ac", "1",
@@ -61,8 +63,10 @@ def process_audio(input_path: str, output_dir: str) -> str:
 
 def _get_duration(file_path: str) -> float:
     """ffprobe로 오디오 파일의 길이(초)를 구한다."""
+    FFPROBE_PATH = r"C:\Users\myrea\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffprobe.exe"
+    
     cmd = [
-        "ffprobe", "-v", "quiet",
+        FFPROBE_PATH, "-v", "quiet",
         "-print_format", "json",
         "-show_format",
         file_path,

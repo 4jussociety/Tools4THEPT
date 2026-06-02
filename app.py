@@ -1,65 +1,49 @@
 import os
-import shutil
 from pathlib import Path
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
-import traceback
-
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from main import run_pipeline
+# 라우터 임포트
+from routers import sessions, profile
 
-# 현재 파일(app.py)의 위치를 기준으로 절대 경로 설정
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
-OUTPUT_DIR = BASE_DIR / "output"
 
-app = FastAPI(title="재활치료 AI 차팅 솔루션 API")
+app = FastAPI(title="재활치료 AI 차팅 SaaS 솔루션 API")
+
+# CORS 미들웨어 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 실무에서는 특정 도메인만 허용하도록 변경 권장
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 정적 파일 서빙 디렉토리 설정 (절대 경로 사용)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# 라우터 마운트
+app.include_router(sessions.router)
+app.include_router(profile.router)
 
 @app.get("/")
 async def read_index():
     index_path = STATIC_DIR / "index.html"
     return FileResponse(str(index_path))
 
-@app.post("/api/analyze")
-async def analyze_audio(
-    file: UploadFile = File(...),
-    profession: str = Form("pt"),
-    memo: str = Form(None)
-):
+@app.get("/api/config")
+async def get_config():
     """
-    업로드된 오디오 파일과 추가 메모를 분석하여 차트, 가이드, 녹취록을 반환합니다.
+    프론트엔드에서 Supabase Client를 동적으로 초기화할 수 있도록 환경변수를 반환합니다.
     """
-    try:
-        # 1. 파일 임시 저장 (절대 경로 사용)
-        upload_dir = OUTPUT_DIR / "uploads"
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 오디오 파일 저장
-        file_path = str(upload_dir / file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        # 2. 파이프라인 실행 (절대 경로 전달)
-        print(f"\n[{profession.upper()}] API 분석 시작: {file.filename}")
-        results = run_pipeline(file_path, str(OUTPUT_DIR), profession, memo=memo)
-        
-        return {
-            "status": "success",
-            "data": results
-        }
-        
-    except Exception as e:
-        print(f"\n오류 발생: {type(e).__name__}: {e}")
-        traceback.print_exc()
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+    return {
+        "supabase_url": os.getenv("SUPABASE_URL", ""),
+        "supabase_anon_key": os.getenv("SUPABASE_ANON_KEY", "")
+    }

@@ -10,6 +10,7 @@
     <link rel="icon" href="/static/thept_logo.png">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -22,49 +23,86 @@
             <p>음성 녹음 파일을 업로드하면 AI가 자동으로 임상 차트와 환자 가이드를 작성합니다.</p>
         </header>
 
-        <main>
-            <div class="glass-panel upload-section">
-                <form id="upload-form">
-                    <div class="form-group">
-                        <label for="profession">전문 직군 선택</label>
-                        <select id="profession" name="profession">
-                            <option value="pt" selected>물리치료 (PT)</option>
-                            <option value="ot">작업치료 (OT)</option>
-                            <option value="st">언어재활 (ST)</option>
-                            <option value="rehab">기타 재활</option>
-                        </select>
-                    </div>
+        <!-- 상단 인증 바 -->
+        <div class="glass-panel auth-bar">
+            <div id="user-info" class="hidden">
+                <div class="user-meta-group">
+                    <span id="user-email">email@example.com</span>
+                    <span id="quota-info" class="badge">남은 횟수: <strong id="quota-remaining">0</strong> / <strong id="quota-limit">0</strong></span>
+                </div>
+                <div class="user-meta-group">
+                    <button id="charge-btn" class="charge-btn">10회 충전(가상)</button>
+                    <button id="logout-btn" class="text-link-btn">로그아웃</button>
+                </div>
+            </div>
+            <div id="auth-buttons">
+                <span style="color: var(--text-muted); font-size: 0.9rem; margin-right: 1rem;">로그인 후 서비스를 이용하실 수 있습니다.</span>
+                <button id="open-login-btn" class="secondary-btn" style="display: inline-flex;">로그인 / 회원가입</button>
+            </div>
+        </div>
 
-                    <div class="upload-grid">
-                        <div class="upload-item">
-                            <label class="item-label">
-                                1. 음성 파일 업로드
-                                <button type="button" id="open-guide-btn" class="text-link-btn">녹음 가이드 확인</button>
-                            </label>
-                            <div class="drop-zone" id="drop-zone">
-                                <span class="drop-zone__prompt">
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                                    <br/>음성 파일 선택
-                                </span>
-                                <input type="file" name="file" id="file-input" accept="audio/*" class="drop-zone__input">
+        <main class="dashboard-grid">
+            <div class="left-panel-group">
+                <!-- 1. 파일 업로드 영역 -->
+                <div class="glass-panel upload-section">
+                    <form id="upload-form">
+                        <div class="form-group">
+                            <label for="profession">전문 직군 선택</label>
+                            <select id="profession" name="profession">
+                                <option value="pt" selected>물리치료 (PT)</option>
+                                <option value="ot">작업치료 (OT)</option>
+                                <option value="st">언어재활 (ST)</option>
+                                <option value="rehab">기타 재활</option>
+                            </select>
+                        </div>
+    
+                        <div class="upload-grid">
+                            <div class="upload-item">
+                                <label class="item-label">
+                                    1. 음성 파일 업로드
+                                    <button type="button" id="open-guide-btn" class="text-link-btn">녹음 가이드</button>
+                                </label>
+                                <div class="drop-zone" id="drop-zone">
+                                    <span class="drop-zone__prompt">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                        <br/><small>음성 파일 선택</small>
+                                    </span>
+                                    <input type="file" name="file" id="file-input" accept="audio/*" class="drop-zone__input">
+                                </div>
+                            </div>
+    
+                            <div class="upload-item">
+                                <label class="item-label" for="memo-input">2. 수기기록 추가 (텍스트)</label>
+                                <textarea id="memo-input" name="memo" placeholder="수기로 작성한 핵심 내용을 여기에 직접 입력하세요..."></textarea>
                             </div>
                         </div>
+    
+                        <button type="submit" id="submit-btn" disabled>AI 분석 시작하기</button>
+                    </form>
+    
+                    <div id="loading-indicator" class="hidden">
+                        <div class="spinner"></div>
+                        <p class="loading-text">AI가 음성을 분석하고 리포트를 생성 중입니다...<br/><small>(약 1~2분 소요될 수 있습니다)</small></p>
+                    </div>
+                </div>
 
-                        <div class="upload-item">
-                            <label class="item-label" for="memo-input">2. 수기기록 추가 (텍스트)</label>
-                            <textarea id="memo-input" name="memo" placeholder="수기로 작성한 핵심 내용을 여기에 직접 입력하세요..."></textarea>
+                <!-- 2. 이전 차팅 기록 (히스토리) 영역 -->
+                <div class="glass-panel history-panel">
+                    <div class="history-title">
+                        <span>이전 차팅 기록</span>
+                        <button id="refresh-history-btn" class="text-link-btn" style="margin: 0; display: inline-flex; align-items: center; gap: 4px;">
+                            새로고침
+                        </button>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-size: 0.9rem;">
+                            로그인 후 사용 이력을 불러옵니다.
                         </div>
                     </div>
-
-                    <button type="submit" id="submit-btn" disabled>AI 분석 시작하기</button>
-                </form>
-
-                <div id="loading-indicator" class="hidden">
-                    <div class="spinner"></div>
-                    <p class="loading-text">AI가 음성을 분석하고 리포트를 생성 중입니다...<br/><small>(약 1~2분 소요될 수 있습니다)</small></p>
                 </div>
             </div>
 
+            <!-- 3. 결과 탭 영역 -->
             <div id="results-section" class="glass-panel hidden">
                 <div class="tabs-header">
                     <div class="tabs">
@@ -75,11 +113,11 @@
                     <div class="actions">
                         <button id="copy-btn" class="secondary-btn">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            복사하기
+                            복사
                         </button>
                         <button id="download-csv-btn" class="secondary-btn">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            CSV 저장
+                            CSV
                         </button>
                     </div>
                 </div>
@@ -136,7 +174,7 @@
                     </section>
 
                     <section class="guide-item">
-                        <h4>3. 레드 플래그 (Red Flags)</h4>
+                        <h4>3. RED FLAGS (Red Flags)</h4>
                         <p>즉시 개입이나 전원이 필요한 심각한 징후입니다.</p>
                         <ul>
                             <li><strong>신경학적 증상</strong>: 감각 이상(무딤), 근력 저하(힘 빠짐), 방사통</li>
@@ -153,6 +191,46 @@
                         </ul>
                     </section>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로그인/회원가입 모달 -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-content auth-modal-content glass-panel">
+            <div class="modal-header">
+                <h3 id="auth-title">로그인</h3>
+                <button id="close-auth-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="auth-form">
+                    <div class="form-group">
+                        <label for="auth-email">이메일 주소</label>
+                        <input type="email" id="auth-email" class="auth-input" required placeholder="example@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">비밀번호</label>
+                        <input type="password" id="auth-password" class="auth-input" required placeholder="비밀번호 입력 (6자 이상)">
+                    </div>
+                    <div class="form-group signup-only hidden" id="signup-name-group">
+                        <label for="auth-name">치료사 이름</label>
+                        <input type="text" id="auth-name" class="auth-input" placeholder="홍길동">
+                    </div>
+                    <div class="form-group signup-only hidden" id="signup-profession-group">
+                        <label for="auth-profession">전문 직군</label>
+                        <select id="auth-profession">
+                            <option value="pt" selected>물리치료 (PT)</option>
+                            <option value="ot">작업치료 (OT)</option>
+                            <option value="st">언어재활 (ST)</option>
+                            <option value="rehab">기타 재활</option>
+                        </select>
+                    </div>
+                    
+                    <div class="auth-action-buttons">
+                        <button type="submit" id="auth-submit-btn">로그인</button>
+                        <button type="button" id="toggle-auth-mode-btn" class="text-link-btn" style="margin: 0; text-align: center;">계정이 없으신가요? 회원가입</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
