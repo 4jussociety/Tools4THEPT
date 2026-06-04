@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let lastResultData = null; // Store last analysis result for export
     let isSignUpMode = false;
     let pollingInterval = null;
+    let isLoggedIn = false;
 
     // 1. Supabase Client 동적 초기화
     try {
@@ -59,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const config = await configRes.json();
         
         if (config.supabase_url && config.supabase_anon_key && !config.supabase_url.includes("your-project")) {
-            supabase = supabase.createClient(config.supabase_url, config.supabase_anon_key);
+            supabase = window.supabase.createClient(config.supabase_url, config.supabase_anon_key);
             console.log("Supabase Client initialized successfully.");
         } else {
             // 로컬 디버깅용 가짜 Supabase 클라이언트 Mocking (개발용 안전장치)
@@ -143,6 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function initAuthListener() {
         supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
+                isLoggedIn = true;
                 // 로그인 완료 상태
                 const user = session.user;
                 userEmailSpan.textContent = user.email;
@@ -157,6 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await updateProfileInfo();
                 await loadHistory();
             } else {
+                isLoggedIn = false;
                 // 로그아웃 상태
                 userInfo.classList.add('hidden');
                 authButtons.classList.remove('hidden');
@@ -294,21 +297,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 로그아웃
     logoutBtn.addEventListener('click', async () => {
         if (confirm("로그아웃 하시겠습니까?")) {
-            await supabase.auth.signOut();
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+            } catch (err) {
+                console.error("SignOut error, forcing local logout:", err);
+                // 프로젝트 URL 변경 등으로 인한 인증 오류 발생 시 세션 강제 청소 후 리로드
+                localStorage.clear();
+                window.location.reload();
+            }
         }
     });
 
     // 4. 드래그 앤 드롭 파일 인터랙션
     dropZoneElement.addEventListener('click', () => {
-        // 로그인 상태일 때만 인풋 활성화
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                inputElement.click();
-            } else {
-                alert("로그인이 필요한 서비스입니다.");
-                openLoginBtn.click();
-            }
-        });
+        // 로그인 상태일 때만 인풋 활성화 (동기적 체크로 브라우저 차단 우회)
+        if (isLoggedIn) {
+            inputElement.click();
+        } else {
+            alert("로그인이 필요한 서비스입니다.");
+            openLoginBtn.click();
+        }
     });
 
     inputElement.addEventListener('change', () => {
