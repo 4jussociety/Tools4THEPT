@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import shutil
 
 
 def process_audio(input_path: str, output_dir: str) -> str:
@@ -38,7 +39,11 @@ def process_audio(input_path: str, output_dir: str) -> str:
         "loudnorm",
     ])
 
-    FFMPEG_PATH = r"C:\Users\myrea\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe"
+    hardcoded_ffmpeg = r"C:\Users\myrea\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe"
+    if os.path.exists(hardcoded_ffmpeg):
+        FFMPEG_PATH = hardcoded_ffmpeg
+    else:
+        FFMPEG_PATH = shutil.which("ffmpeg") or "ffmpeg"
     
     cmd = [
         FFMPEG_PATH, "-y",
@@ -63,7 +68,11 @@ def process_audio(input_path: str, output_dir: str) -> str:
 
 def _get_duration(file_path: str) -> float:
     """ffprobe로 오디오 파일의 길이(초)를 구한다."""
-    FFPROBE_PATH = r"C:\Users\myrea\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffprobe.exe"
+    hardcoded_ffprobe = r"C:\Users\myrea\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.WinGet.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffprobe.exe"
+    if os.path.exists(hardcoded_ffprobe):
+        FFPROBE_PATH = hardcoded_ffprobe
+    else:
+        FFPROBE_PATH = shutil.which("ffprobe") or "ffprobe"
     
     cmd = [
         FFPROBE_PATH, "-v", "quiet",

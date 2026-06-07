@@ -18,3 +18,11 @@ output/
 # IDE
 .vscode/
 .idea/
+
+# Binaries
+*.exe
+
+# Debugging / Temp scripts
+list_buckets.py
+test_storage_upload.py
+test_supabase_sdk_upload.py

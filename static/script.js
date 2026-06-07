@@ -54,16 +54,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     let pollingInterval = null;
     let isLoggedIn = false;
 
+    // Default Supabase Config (Fallback for 100% serverless static hosting)
+    let supabaseUrl = "https://tjabxdtuotydkksqonkq.supabase.co";
+    let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqYWJ4ZHR1b3R5ZGtrc3FvbmtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTg2NjAsImV4cCI6MjA5NjEzNDY2MH0.TBKb0iU3au0kS-K7aEHn56111fJ3F1fVpbbQysdvhCg";
+
     // 1. Supabase Client 동적 초기화
     try {
-        const configRes = await fetch('/api/config');
-        const config = await configRes.json();
-        
-        if (config.supabase_url && config.supabase_anon_key && !config.supabase_url.includes("your-project")) {
-            supabase = window.supabase.createClient(config.supabase_url, config.supabase_anon_key);
+        try {
+            const configRes = await fetch('/api/config');
+            if (configRes.ok) {
+                const config = await configRes.json();
+                if (config.supabase_url && config.supabase_anon_key && !config.supabase_url.includes("your-project")) {
+                    supabaseUrl = config.supabase_url;
+                    supabaseAnonKey = config.supabase_anon_key;
+                }
+            }
+        } catch (err) {
+            console.warn("Could not fetch /api/config, using default credentials:", err);
+        }
+
+        if (supabaseUrl && supabaseAnonKey) {
+            supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
             console.log("Supabase Client initialized successfully.");
         } else {
-            // 로컬 디버깅용 가짜 Supabase 클라이언트 Mocking (개발용 안전장치)
             console.warn("Warning: Using Mock Supabase Client because credentials are placeholder or missing.");
             setupMockSupabase();
         }
@@ -76,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initAuthListener();
 
     function setupMockSupabase() {
-        // 백엔드에서 SUPABASE_JWT_SECRET이 비어있는 경우, 로컬 테스트를 유연하게 하기 위해 가짜 클라이언트를 흉내냅니다.
         let loggedInUser = localStorage.getItem('mock_user_email') || null;
         let mockToken = localStorage.getItem('mock_token') || null;
         
@@ -120,7 +132,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             callback("SIGNED_OUT", null);
                         }
                     };
-                    // 최초 1회 실행
                     setTimeout(authListenerCallback, 100);
                     return { data: { subscription: { unsubscribe: () => {} } } };
                 }
@@ -130,41 +141,101 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let authListenerCallback = () => {};
 
-    // 인증 헤더 획득 함수
-    async function getAuthHeaders() {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            return {
-                'Authorization': `Bearer ${session.access_token}`
-            };
+    // Audio preprocessing helper (16kHz Mono WAV)
+    async function preprocessAudioFile(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
+        
+        const targetSampleRate = 16000;
+        const offlineCtx = new OfflineAudioContext(
+            1,
+            Math.round(decodedData.duration * targetSampleRate),
+            targetSampleRate
+        );
+        
+        const source = offlineCtx.createBufferSource();
+        source.buffer = decodedData;
+        source.connect(offlineCtx.destination);
+        source.start();
+        
+        const renderedBuffer = await offlineCtx.startRendering();
+        
+        // 16-bit PCM WAV encoding
+        const buffer = renderedBuffer;
+        const numOfChan = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const format = 1; // 1 = raw PCM
+        const bitDepth = 16;
+        
+        const result = buffer.getChannelData(0);
+        
+        // Peak normalization to 0.95
+        let maxVal = 0;
+        for (let i = 0; i < result.length; i++) {
+            const abs = Math.abs(result[i]);
+            if (abs > maxVal) maxVal = abs;
         }
-        return {};
+        if (maxVal > 0) {
+            const scale = 0.95 / maxVal;
+            for (let i = 0; i < result.length; i++) {
+                result[i] *= scale;
+            }
+        }
+        
+        const bufferLength = result.length * 2;
+        const wavBuffer = new ArrayBuffer(44 + bufferLength);
+        const view = new DataView(wavBuffer);
+        
+        const writeString = (view, offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+        
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + bufferLength, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, format, true);
+        view.setUint16(22, numOfChan, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numOfChan * (bitDepth / 8), true);
+        view.setUint16(32, numOfChan * (bitDepth / 8), true);
+        view.setUint16(34, bitDepth, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, bufferLength, true);
+        
+        // Float to 16-bit PCM
+        let offset = 44;
+        for (let i = 0; i < result.length; i++, offset += 2) {
+            let s = Math.max(-1, Math.min(1, result[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+        
+        return new Blob([view], { type: 'audio/wav' });
     }
 
     function initAuthListener() {
         supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 isLoggedIn = true;
-                // 로그인 완료 상태
                 const user = session.user;
                 userEmailSpan.textContent = user.email;
                 userInfo.classList.remove('hidden');
                 authButtons.classList.add('hidden');
                 authModal.classList.add('hidden');
                 
-                // 서비스 활성화
                 submitBtn.disabled = !inputElement.files.length;
                 
-                // 프로필 정보(Quota) 및 이력 로드
                 await updateProfileInfo();
                 await loadHistory();
             } else {
                 isLoggedIn = false;
-                // 로그아웃 상태
                 userInfo.classList.add('hidden');
                 authButtons.classList.remove('hidden');
                 
-                // 업로드 비활성화 및 화면 초기화
                 submitBtn.disabled = true;
                 resultsSection.classList.add('hidden');
                 historyList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-size: 0.9rem;">로그인 후 사용 이력을 불러옵니다.</div>`;
@@ -172,18 +243,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 사용자 프로필 및 Quota 정보 업데이트
+    // 사용자 프로필 및 Quota 정보 업데이트 (Supabase RLS 조회로 전면 변경)
     async function updateProfileInfo() {
         try {
-            const headers = await getAuthHeaders();
-            const res = await fetch('/api/profile', { headers });
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('quota_limit, quota_used')
+                .eq('id', session.user.id)
+                .single();
             
-            if (res.ok) {
-                const profile = await res.json();
+            if (error) throw error;
+
+            if (profile) {
                 quotaRemaining.textContent = profile.quota_limit - profile.quota_used;
                 quotaLimitVal.textContent = profile.quota_limit;
                 
-                // 만약 quota 소진 시 UI 경고
                 if (profile.quota_limit - profile.quota_used <= 0) {
                     quotaRemaining.style.color = '#ef4444';
                 } else {
@@ -195,33 +272,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 가상 충전 처리
+    // 가상 충전 처리 (Supabase RLS 업데이트로 전면 변경)
     chargeBtn.addEventListener('click', async () => {
         try {
-            const headers = await getAuthHeaders();
-            const res = await fetch('/api/profile/charge', {
-                method: 'POST',
-                headers: {
-                    ...headers,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ amount: 10 }) // 10회 추가
-            });
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
             
-            const result = await res.json();
-            if (res.ok) {
-                alert(result.message);
-                await updateProfileInfo();
-            } else {
-                alert("충전에 실패했습니다: " + result.detail);
-            }
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('quota_limit')
+                .eq('id', session.user.id)
+                .single();
+            
+            const newLimit = (profile?.quota_limit || 0) + 10;
+            
+            const { error } = await supabase
+                .from('profiles')
+                .update({ quota_limit: newLimit })
+                .eq('id', session.user.id);
+                
+            if (error) throw error;
+
+            alert("10회 충전이 완료되었습니다 (가상).");
+            await updateProfileInfo();
         } catch (err) {
             console.error(err);
-            alert("통신 중 오류가 발생했습니다.");
+            alert("충전에 실패했습니다: " + err.message);
         }
     });
 
-    // 3. 로그인 / 가입 모달 동작 제어
+    // 로그인 / 가입 모달 동작 제어
     openLoginBtn.addEventListener('click', () => {
         isSignUpMode = false;
         updateAuthModalUI();
@@ -296,22 +376,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 로그아웃
     logoutBtn.addEventListener('click', async () => {
-        if (confirm("로그아웃 하시겠습니까?")) {
-            try {
-                const { error } = await supabase.auth.signOut();
-                if (error) throw error;
-            } catch (err) {
-                console.error("SignOut error, forcing local logout:", err);
-                // 프로젝트 URL 변경 등으로 인한 인증 오류 발생 시 세션 강제 청소 후 리로드
-                localStorage.clear();
-                window.location.reload();
-            }
+        try {
+            await Promise.race([
+                supabase.auth.signOut(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1500))
+            ]);
+        } catch (err) {
+            console.warn("SignOut API call skipped/failed/timeout:", err);
+        } finally {
+            localStorage.clear();
+            sessionStorage.clear();
+            localStorage.removeItem('mock_user_email');
+            localStorage.removeItem('mock_token');
+            window.location.reload();
         }
     });
 
-    // 4. 드래그 앤 드롭 파일 인터랙션
+    // 드래그 앤 드롭 파일 인터랙션
     dropZoneElement.addEventListener('click', () => {
-        // 로그인 상태일 때만 인풋 활성화 (동기적 체크로 브라우저 차단 우회)
         if (isLoggedIn) {
             inputElement.click();
         } else {
@@ -377,7 +459,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 5. 비동기 업로드 및 폴링 메커니즘
+    // 5. 비동기 업로드 및 폴링 메커니즘 (Supabase 단독 서버리스로 전면 변경)
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -390,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const formData = new FormData(form);
+        const originalFile = inputElement.files[0];
         
         // UI 잠금 및 로딩 상태
         submitBtn.disabled = true;
@@ -398,28 +480,75 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadingIndicator.classList.remove('hidden');
         resultsSection.classList.add('hidden');
 
+        const loadingText = loadingIndicator.querySelector('.loading-text');
+
         try {
-            const headers = await getAuthHeaders();
-            const response = await fetch('/api/sessions/analyze', {
-                method: 'POST',
-                headers: headers,
-                body: formData
+            // 1) 오디오 전처리 (리샘플링 및 16kHz 모노 WAV 인코딩)
+            loadingText.innerHTML = "오디오 전처리 및 압축 진행 중...<br/><small>(브라우저에서 직접 수행하여 속도가 빠릅니다)</small>";
+            let wavBlob;
+            try {
+                wavBlob = await preprocessAudioFile(originalFile);
+                console.log(`Preprocessed audio size: ${Math.round(wavBlob.size / 1024)} KB`);
+            } catch (preprocessErr) {
+                console.warn("Browser audio preprocessing failed, using original file as fallback:", preprocessErr);
+                wavBlob = originalFile;
+            }
+
+            // 2) Supabase sessions 테이블에 삽입
+            loadingText.innerHTML = "세션 정보를 생성하는 중...";
+            const { data: sessionData, error: sessionErr } = await supabase
+                .from('sessions')
+                .insert({
+                    user_id: session.user.id,
+                    profession: professionSelect.value,
+                    patient_name: originalFile.name,
+                    status: 'pending',
+                    memo: memoInput.value
+                })
+                .select()
+                .single();
+
+            if (sessionErr || !sessionData) {
+                throw new Error("세션 생성 실패: " + (sessionErr?.message || "알 수 없는 오류"));
+            }
+
+            const sessionId = sessionData.id;
+
+            // 3) Supabase Storage에 직접 업로드
+            loadingText.innerHTML = "압축된 음성 파일을 업로드하는 중...";
+            const storagePath = `${session.user.id}/${sessionId}_processed_audio.wav`;
+
+            const { data: uploadData, error: uploadErr } = await supabase
+                .storage
+                .from('audio-records')
+                .upload(storagePath, wavBlob, {
+                    contentType: 'audio/wav',
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            if (uploadErr) {
+                // DB에서 세션 삭제하여 정리
+                await supabase.from('sessions').delete().eq('id', sessionId);
+                throw new Error("음성 파일 업로드 실패: " + uploadErr.message);
+            }
+
+            // 4) Supabase Edge Function 호출
+            loadingText.innerHTML = "AI 분석을 시작하는 중...<br/><small>(약 1~2분 소요될 수 있습니다)</small>";
+            const { data: invokeData, error: invokeErr } = await supabase.functions.invoke('analyze', {
+                body: { session_id: sessionId }
             });
 
-            const result = await response.json();
-
-            if (response.ok && result.status === 'success') {
-                const sessionId = result.session_id;
-                // 이전 차팅 내역 새로고침
-                await loadHistory();
-                // 3초 간격 폴링 루프 가동
-                startPollingSession(sessionId);
-            } else {
-                alert('오류 발생: ' + (result.detail || result.message || '서버 오류'));
-                resetUploadUI();
+            if (invokeErr) {
+                throw new Error("분석 요청 실패: " + invokeErr.message);
             }
+
+            // 5) 이전 차팅 내역 새로고침 및 폴링 시작
+            await loadHistory();
+            startPollingSession(sessionId);
+
         } catch (error) {
-            alert('서버와 통신 중 오류가 발생했습니다.');
+            alert('오류 발생: ' + error.message);
             console.error(error);
             resetUploadUI();
         }
@@ -431,33 +560,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         dropZoneElement.style.pointerEvents = 'auto';
     }
 
-    // 분석 작업 진행 상태 폴링 함수
+    // 분석 작업 진행 상태 폴링 함수 (Supabase RLS 조회로 전면 변경)
     function startPollingSession(sessionId) {
         if (pollingInterval) clearInterval(pollingInterval);
         
         pollingInterval = setInterval(async () => {
             try {
-                const headers = await getAuthHeaders();
-                const res = await fetch(`/api/sessions/${sessionId}`, { headers });
+                const { data: session, error } = await supabase
+                    .from('sessions')
+                    .select('status')
+                    .eq('id', sessionId)
+                    .single();
                 
-                if (res.ok) {
-                    const session = await res.json();
-                    
-                    // 과거 이력 리스트의 아이템 상태를 동기화
+                if (error) throw error;
+                
+                if (session) {
                     updateHistoryItemStatus(sessionId, session.status);
                     
                     if (session.status === 'completed') {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
                         
-                        // 결과 렌더링
-                        lastResultData = session.results;
-                        displayResults(session.results);
-                        
-                        // 사용량(Quota) 및 이력 리스트 정보 갱신
+                        await loadSessionDetail(sessionId);
                         await updateProfileInfo();
                         await loadHistory();
-                        
                         resetUploadUI();
                     } else if (session.status === 'failed') {
                         clearInterval(pollingInterval);
@@ -466,25 +592,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                         await loadHistory();
                         resetUploadUI();
                     }
-                } else {
-                    console.error("Polling error: ", res.status);
                 }
             } catch (err) {
                 console.error("Polling fetch failed:", err);
             }
-        }, 3000); // 3초 간격
+        }, 3000);
     }
 
-    // 6. 히스토리(이력) 목록 제어
+    // 히스토리(이력) 목록 제어 (Supabase RLS 조회로 전면 변경)
     async function loadHistory() {
         try {
-            const headers = await getAuthHeaders();
-            const res = await fetch('/api/sessions', { headers });
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const { data: sessions, error } = await supabase
+                .from('sessions')
+                .select('id, patient_name, status, profession, created_at')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false });
             
-            if (res.ok) {
-                const sessions = await res.json();
-                renderHistoryList(sessions);
-            }
+            if (error) throw error;
+            renderHistoryList(sessions);
         } catch (err) {
             console.error("Failed to load history:", err);
         }
@@ -536,10 +664,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
         }).join('');
 
-        // 각 이력 아이템 클릭 시 결과 로드 바인딩
         document.querySelectorAll('.history-item').forEach(item => {
             item.addEventListener('click', async () => {
-                // 활성화 클래스 변경
                 document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 
@@ -567,27 +693,65 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 개별 세션 데이터 상세 정보 조회 및 결과창 연동
+    // 개별 세션 상세 및 결과 데이터 로드 (Supabase RLS 조회로 전면 변경)
     async function loadSessionDetail(sessionId) {
         try {
-            const headers = await getAuthHeaders();
-            const res = await fetch(`/api/sessions/${sessionId}`, { headers });
+            const { data: session, error } = await supabase
+                .from('sessions')
+                .select('*')
+                .eq('id', sessionId)
+                .single();
             
-            if (res.ok) {
-                const session = await res.json();
+            if (error) throw error;
+            
+            if (session) {
+                const responseData = {
+                    id: session.id,
+                    patient_name: session.patient_name,
+                    status: session.status,
+                    profession: session.profession,
+                    audio_url: session.audio_url,
+                    memo: session.memo,
+                    created_at: session.created_at,
+                    results: null
+                };
                 
-                // 만약 현재 이 세션이 분석 중인 경우 폴링 가동
                 if (session.status === 'pending' || session.status === 'processing') {
-                    // UI 잠그고 로더 실행
                     submitBtn.disabled = true;
                     dropZoneElement.style.pointerEvents = 'none';
                     loadingIndicator.classList.remove('hidden');
                     resultsSection.classList.add('hidden');
                     startPollingSession(sessionId);
                 } else if (session.status === 'completed') {
-                    lastResultData = session.results;
-                    displayResults(session.results);
-                    resultsSection.classList.remove('hidden');
+                    // Fetch results
+                    const { data: result, error: resultErr } = await supabase
+                        .from('results')
+                        .select('*')
+                        .eq('session_id', sessionId)
+                        .single();
+
+                    if (resultErr) throw resultErr;
+                       
+                    if (result) {
+                        let chartData = result.chart_data;
+                        if (typeof chartData === 'string') {
+                            try {
+                                chartData = JSON.parse(chartData);
+                            } catch (e) {
+                                console.error("Error parsing chart json", e);
+                            }
+                        }
+                        responseData.results = {
+                            raw_transcript: result.raw_transcript,
+                            refined_transcript: result.refined_transcript,
+                            chart_data: chartData,
+                            guide_content: result.guide_content
+                        };
+                        
+                        lastResultData = responseData.results;
+                        displayResults(responseData.results);
+                        resultsSection.classList.remove('hidden');
+                    }
                 } else {
                     alert("해당 세션은 분석 도중 실패했습니다.");
                     resultsSection.classList.add('hidden');
@@ -602,34 +766,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     function displayResults(results) {
         if (!results) return;
 
-        // 임상 차트 렌더링
         if (results.chart_data) {
             renderChart(results.chart_data, chartContent);
         }
         
-        // 환자 가이드 렌더링 (Markdown -> HTML)
         if (results.guide_content) {
             guideContent.innerHTML = marked.parse(results.guide_content);
         }
         
-        // 보정 녹취록 렌더링
         if (results.refined_transcript) {
             transcriptContent.textContent = results.refined_transcript;
         }
 
-        // 결과창 숨김 해제
         resultsSection.classList.remove('hidden');
         lucide.createIcons();
     }
 
-    // 7. 결과 탭 제어 로직
+    // 결과 탭 제어 로직
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Remove active classes
             tabBtns.forEach(b => b.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
 
-            // Add active class to clicked
             btn.classList.add('active');
             const tabId = btn.getAttribute('data-tab');
             document.getElementById(`tab-${tabId}`).classList.add('active');
@@ -667,7 +825,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             ["항목", "내용"]
         ];
 
-        // 1. Add chart items to rows
         if (lastResultData.chart_data && lastResultData.chart_data.clinical_record) {
             const cr = lastResultData.chart_data.clinical_record;
             const sections = {
@@ -702,11 +859,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // 2. Add guide and transcript
         rows.push(["환자 가이드", lastResultData.guide_content || ""]);
         rows.push(["보정 녹취록", lastResultData.refined_transcript || ""]);
 
-        // CSV content generation
         let csvContent = "\uFEFF"; // BOM
         rows.forEach(row => {
             const processedRow = row.map(val => {
@@ -754,7 +909,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             rapport_data: '🤝 라포 데이터 (Rapport)',
             personal_background: '개인 배경 (가족/직업/취미 등)',
             patient_preferences: '환자 선호도',
-            psychosocial_factors: '심리사회적 요인',
+            psychosocial_factors: '심리적 상태, 사회적 지지 체계 등 심리사회적 요인',
             compliance_attitude: '순응도 및 태도',
             upcoming_events: '향후 일정 (여행/행사 등)',
             follow_up_cues: '다음 방문 시 참고사항'
