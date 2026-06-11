@@ -32,20 +32,18 @@ def run_async_pipeline(
     session_output_dir.mkdir(parents=True, exist_ok=True)
     
     audio_path = Path(local_audio_path)
-    storage_path = f"{user_id}/{session_id}_processed_audio.mp3"
+    # Use original file extension directly
+    ext = audio_path.suffix.lstrip('.') if audio_path.suffix else "mp3"
+    storage_path = f"{user_id}/{session_id}_processed_audio.{ext}"
     
     try:
         # 1. sessions 상태를 'processing'으로 변경
         supabase.table("sessions").update({"status": "processing"}).eq("id", session_id).execute()
         print(f"[{session_id}] 상태 변경: processing")
 
-        # 2. 오디오 전처리 (FFmpeg을 통해 노이즈 제거 및 MP3 64kbps 압축 우선 수행)
-        print(f"[{session_id}] 오디오 전처리 시작...")
-        processed_path = process_audio(local_audio_path, str(session_output_dir))
-
-        # 3. Supabase Storage에 압축된 전처리 오디오 파일 업로드
+        # 2. Supabase Storage에 오디오 파일 업로드 (전처리 없이 원본 파일 그대로 업로드)
         print(f"[{session_id}] Supabase Storage 업로드 중... ({storage_path})")
-        with open(processed_path, "rb") as f:
+        with open(audio_path, "rb") as f:
             try:
                 # audio-records 버킷에 업로드
                 supabase.storage.from_("audio-records").upload(
@@ -62,13 +60,13 @@ def run_async_pipeline(
                 print(f"[{session_id}] Warning: Storage upload failed ({se}). Using local reference.")
                 # Storage 업로드가 실패해도 로컬에서 분석을 계속 진행함
 
-        # 4. STT + 화자 분리 (Soniox AI API)
+        # 3. STT + 화자 분리 (Soniox AI API) - 전처리된 오디오 대신 원본 오디오 전달
         print(f"[{session_id}] Soniox STT 및 화자 분리 시작...")
         soniox_key = os.getenv("SONIOX_API_KEY", "")
         if not soniox_key:
             raise ValueError("SONIOX_API_KEY is not configured in .env")
             
-        stt_response = transcribe(processed_path, soniox_key)
+        stt_response = transcribe(str(audio_path), soniox_key)
         diarized_text = format_diarized_transcript(stt_response)
 
         # 5. 텍스트 보정 (GPT-4o-mini)
@@ -173,8 +171,22 @@ def run_local_edge_mimic_pipeline(
     supabase = get_supabase()
     openai_client = OpenAI()
     
-    storage_path = f"{user_id}/{session_id}_processed_audio.wav"
-    local_temp_path = OUTPUT_DIR / f"{session_id}_temp.wav"
+    # Find the processed audio file in storage with dynamic extension
+    ext = "wav"
+    try:
+        files = supabase.storage.from_("audio-records").list(user_id)
+        prefix = f"{session_id}_processed_audio."
+        for f in files:
+            name = f.get("name", "")
+            if name.startswith(prefix):
+                ext = name.split(".")[-1]
+                print(f"[LocalEdge] Found processed audio file with extension: {ext}")
+                break
+    except Exception as list_err:
+        print(f"[LocalEdge] Warning: Failed to list storage directory ({list_err}). Falling back to .wav")
+
+    storage_path = f"{user_id}/{session_id}_processed_audio.{ext}"
+    local_temp_path = OUTPUT_DIR / f"{session_id}_temp.{ext}"
     
     try:
         # 1. 스토리지에서 오디오 다운로드

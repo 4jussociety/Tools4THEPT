@@ -243,6 +243,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // 초 단위를 시간/분 텍스트로 포매팅하는 헬퍼 함수
+    function formatSecondsToTime(seconds) {
+        if (seconds <= 0) return "0분";
+        const totalMinutes = Math.ceil(seconds / 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        if (h > 0) {
+            if (m > 0) {
+                return `${h}시간 ${m}분`;
+            }
+            return `${h}시간`;
+        }
+        return `${m}분`;
+    }
+
+    // 브라우저에서 오디오 파일의 재생 시간을 비동기로 계산하는 헬퍼 함수
+    function getAudioDuration(file) {
+        return new Promise((resolve) => {
+            const audio = document.createElement('audio');
+            audio.src = URL.createObjectURL(file);
+            audio.addEventListener('loadedmetadata', () => {
+                const duration = audio.duration;
+                URL.revokeObjectURL(audio.src);
+                resolve(duration);
+            });
+            audio.addEventListener('error', (e) => {
+                console.error("Failed to load audio metadata:", e);
+                resolve(0);
+            });
+        });
+    }
+
     // 사용자 프로필 및 Quota 정보 업데이트 (Supabase RLS 조회로 전면 변경)
     async function updateProfileInfo() {
         try {
@@ -251,20 +283,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('quota_limit, quota_used')
+                .select('tier, quota_limit, quota_used')
                 .eq('id', session.user.id)
                 .single();
             
             if (error) throw error;
 
             if (profile) {
-                quotaRemaining.textContent = profile.quota_limit - profile.quota_used;
-                quotaLimitVal.textContent = profile.quota_limit;
+                const tier = profile.tier || 'free';
+                const quotaInfo = document.getElementById('quota-info');
                 
-                if (profile.quota_limit - profile.quota_used <= 0) {
-                    quotaRemaining.style.color = '#ef4444';
+                if (tier === 'free') {
+                    const remaining = Math.max(0, profile.quota_limit - profile.quota_used);
+                    quotaInfo.innerHTML = `남은 횟수: <strong id="quota-remaining">${remaining}</strong> / <strong id="quota-limit">${profile.quota_limit}</strong>회 (최대 30분)`;
+                    
+                    const quotaRemainingEl = document.getElementById('quota-remaining');
+                    if (remaining <= 0) {
+                        quotaRemainingEl.style.color = '#ef4444';
+                    } else {
+                        quotaRemainingEl.style.color = 'var(--primary)';
+                    }
                 } else {
-                    quotaRemaining.style.color = 'var(--primary)';
+                    const remainingSeconds = Math.max(0, profile.quota_limit - profile.quota_used);
+                    const formattedRemaining = formatSecondsToTime(remainingSeconds);
+                    const formattedLimit = formatSecondsToTime(profile.quota_limit);
+                    const tierName = tier === 'basic' ? '베이직' : '프리미엄';
+                    
+                    quotaInfo.innerHTML = `남은 시간: <strong id="quota-remaining">${formattedRemaining}</strong> / <strong id="quota-limit">${formattedLimit}</strong> (${tierName})`;
+                    
+                    const quotaRemainingEl = document.getElementById('quota-remaining');
+                    if (remainingSeconds <= 0) {
+                        quotaRemainingEl.style.color = '#ef4444';
+                    } else {
+                        quotaRemainingEl.style.color = 'var(--primary)';
+                    }
                 }
             }
         } catch (err) {
@@ -272,34 +324,184 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 가상 충전 처리 (Supabase RLS 업데이트로 전면 변경)
+    const subModal = document.getElementById('subscription-modal');
+    const closeSubBtn = document.getElementById('close-sub-btn');
+    const subFreeBtn = document.getElementById('sub-free-btn');
+    const subBasicBtn = document.getElementById('sub-basic-btn');
+    const subPremiumBtn = document.getElementById('sub-premium-btn');
+    const cancelSubSection = document.getElementById('cancel-sub-section');
+    const cancelSubBtn = document.getElementById('cancel-sub-btn');
+
+    // Close subscription modal
+    closeSubBtn.addEventListener('click', () => {
+        subModal.classList.add('hidden');
+    });
+
+    // Open & Setup Subscription Modal
     chargeBtn.addEventListener('click', async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            if (!session) {
+                alert("로그인이 필요합니다.");
+                openLoginBtn.click();
+                return;
+            }
             
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('quota_limit')
-                .eq('id', session.user.id)
-                .single();
-            
-            const newLimit = (profile?.quota_limit || 0) + 10;
-            
-            const { error } = await supabase
-                .from('profiles')
-                .update({ quota_limit: newLimit })
-                .eq('id', session.user.id);
-                
-            if (error) throw error;
-
-            alert("10회 충전이 완료되었습니다 (가상).");
-            await updateProfileInfo();
+            await setupSubscriptionModal(session.user.id);
+            subModal.classList.remove('hidden');
         } catch (err) {
-            console.error(err);
-            alert("충전에 실패했습니다: " + err.message);
+            console.error("Failed to load subscription modal:", err);
         }
     });
+
+    async function setupSubscriptionModal(userId) {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('tier, quota_used, subscription_id')
+            .eq('id', userId)
+            .single();
+            
+        if (error) throw error;
+        
+        const tier = profile?.tier || 'free';
+        
+        subFreeBtn.disabled = true;
+        subFreeBtn.textContent = "사용 중";
+        
+        subBasicBtn.disabled = false;
+        subBasicBtn.textContent = "구독하기";
+        
+        subPremiumBtn.disabled = false;
+        subPremiumBtn.textContent = "구독하기";
+        
+        if (tier === 'free') {
+            subFreeBtn.disabled = true;
+            subFreeBtn.textContent = "사용 중";
+            cancelSubSection.classList.add('hidden');
+        } else if (tier === 'basic') {
+            subFreeBtn.disabled = true;
+            subFreeBtn.textContent = "무료 체험";
+            subBasicBtn.disabled = true;
+            subBasicBtn.textContent = "사용 중";
+            cancelSubSection.classList.remove('hidden');
+        } else if (tier === 'premium') {
+            subFreeBtn.disabled = true;
+            subFreeBtn.textContent = "무료 체험";
+            subPremiumBtn.disabled = true;
+            subPremiumBtn.textContent = "사용 중";
+            cancelSubSection.classList.remove('hidden');
+        }
+        
+        subBasicBtn.onclick = () => startMockPayment(userId, 'basic');
+        subPremiumBtn.onclick = () => startMockPayment(userId, 'premium');
+        cancelSubBtn.onclick = () => startMockCancel(userId, profile);
+    }
+
+    async function startMockPayment(userId, tier) {
+        const priceText = tier === 'basic' ? '19,900원' : '29,900원';
+        if (!confirm(`${tier.toUpperCase()} 요금제 (${priceText} / 월) 구독 결제를 진행하시겠습니까?\n(테스트 환경이므로 실제 결제창 대신 모의 결제 웹훅이 실행됩니다.)`)) {
+            return;
+        }
+        
+        subBasicBtn.disabled = true;
+        subPremiumBtn.disabled = true;
+        
+        try {
+            const merchantUid = `sub_${tier}_${userId}_${Date.now()}`;
+            const webhookUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
+            
+            const res = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    imp_uid: `imp_mock_${Date.now()}`,
+                    merchant_uid: merchantUid,
+                    status: 'paid',
+                    customer_uid: `cust_mock_${userId}`
+                })
+            });
+            
+            const json = await res.json();
+            if (res.ok && json.status === 'success') {
+                alert(`${tier.toUpperCase()} 요금제 구독 및 반영에 성공했습니다!`);
+                subModal.classList.add('hidden');
+                await updateProfileInfo();
+            } else {
+                throw new Error(json.error || "웹훅 처리 실패");
+            }
+        } catch (err) {
+            alert("구독 결제 실패: " + err.message);
+            console.error(err);
+        } finally {
+            await setupSubscriptionModal(userId);
+        }
+    }
+
+    async function startMockCancel(userId, profile) {
+        if (!profile.subscription_id) return;
+        
+        const { data: subData, error: subErr } = await supabase
+            .from('subscriptions')
+            .select('merchant_uid, status')
+            .eq('id', profile.subscription_id)
+            .single();
+            
+        if (subErr || !subData) {
+            alert("활성화된 구독 정보를 찾을 수 없습니다.");
+            return;
+        }
+        
+        const quotaUsed = profile.quota_used || 0;
+        
+        if (quotaUsed === 0) {
+            if (confirm("결제 후 사용량이 0초이므로 전액 환불 및 즉시 구독 취소 처리가 가능합니다.\n진행하시겠습니까?")) {
+                try {
+                    const webhookUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
+                    const res = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            imp_uid: `imp_mock_cancel_${Date.now()}`,
+                            merchant_uid: subData.merchant_uid,
+                            status: 'cancelled'
+                        })
+                    });
+                    
+                    const json = await res.json();
+                    if (res.ok && json.status === 'success') {
+                        alert("구독 환불 및 해지 처리가 정상 반영되었습니다. Free 등급으로 전환됩니다.");
+                        subModal.classList.add('hidden');
+                        await updateProfileInfo();
+                    } else {
+                        throw new Error(json.error || "웹훅 처리 실패");
+                    }
+                } catch (err) {
+                    alert("구독 취소 실패: " + err.message);
+                }
+            }
+        } else {
+            if (confirm("이미 크레딧 사용 이력이 있어 환불은 불가합니다.\n이번 구독 주기 만료 후 갱신되지 않도록 예약 해지하시겠습니까?")) {
+                try {
+                    const { error } = await supabase
+                        .from('subscriptions')
+                        .update({ cancel_at_period_end: true })
+                        .eq('id', profile.subscription_id);
+                        
+                    if (error) throw error;
+                    
+                    alert("구독 해지 예약이 정상 처리되었습니다. 만료일까지는 이용하실 수 있습니다.");
+                    subModal.classList.add('hidden');
+                    await updateProfileInfo();
+                } catch (err) {
+                    alert("해지 예약 실패: " + err.message);
+                }
+            }
+        }
+    }
 
     // 로그인 / 가입 모달 동작 제어
     openLoginBtn.addEventListener('click', () => {
@@ -457,6 +659,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target === authModal) {
             authModal.classList.add('hidden');
         }
+        if (e.target === subModal) {
+            subModal.classList.add('hidden');
+        }
     });
 
     // 5. 비동기 업로드 및 폴링 메커니즘 (Supabase 단독 서버리스로 전면 변경)
@@ -474,25 +679,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const originalFile = inputElement.files[0];
         
-        // UI 잠금 및 로딩 상태
+        // UI 잠금 및 로딩 상태 (검증이 실패할 수 있으므로 임시 변수 제어 및 오류 발생 시 환불)
         submitBtn.disabled = true;
         dropZoneElement.style.pointerEvents = 'none';
-        loadingIndicator.classList.remove('hidden');
-        resultsSection.classList.add('hidden');
-
-        const loadingText = loadingIndicator.querySelector('.loading-text');
 
         try {
-            // 1) 오디오 전처리 (리샘플링 및 16kHz 모노 WAV 인코딩)
-            loadingText.innerHTML = "오디오 전처리 및 압축 진행 중...<br/><small>(브라우저에서 직접 수행하여 속도가 빠릅니다)</small>";
-            let wavBlob;
-            try {
-                wavBlob = await preprocessAudioFile(originalFile);
-                console.log(`Preprocessed audio size: ${Math.round(wavBlob.size / 1024)} KB`);
-            } catch (preprocessErr) {
-                console.warn("Browser audio preprocessing failed, using original file as fallback:", preprocessErr);
-                wavBlob = originalFile;
+            // 0) 오디오 재생 시간 사전 측정 및 요금제별 제한 검증
+            const duration = await getAudioDuration(originalFile);
+            if (duration <= 0) {
+                throw new Error("올바르지 않은 오디오 파일이거나 오디오의 길이를 측정할 수 없습니다.");
             }
+
+            // 사용자 프로필 데이터 실시간 조회
+            const { data: profile, error: profileErr } = await supabase
+                .from('profiles')
+                .select('tier, quota_limit, quota_used')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profileErr || !profile) {
+                throw new Error("사용자 프로필 정보를 불러올 수 없습니다.");
+            }
+
+            const tier = profile.tier || 'free';
+            const remaining = profile.quota_limit - profile.quota_used;
+
+            if (tier === 'free') {
+                if (duration > 1800) { // 30분
+                    throw new Error("무료 체험(Free) 등급은 1회 최대 30분까지만 업로드 및 분석이 가능합니다.");
+                }
+                if (remaining <= 0) {
+                    throw new Error("무료 체험 분석 횟수(10회)를 모두 소진하셨습니다. 정기 구독 결제가 필요합니다.");
+                }
+            } else {
+                if (duration > 7200) { // 120분
+                    throw new Error("정기 구독 등급은 1회 최대 120분(2시간)까지만 분석이 가능합니다.");
+                }
+                // 초 단위를 분 단위로 올림하여 필요 차감 시간 계산
+                const requiredSeconds = Math.ceil(duration / 60) * 60;
+                if (remaining < requiredSeconds) {
+                    const formattedRequired = formatSecondsToTime(requiredSeconds);
+                    const formattedRemaining = formatSecondsToTime(remaining);
+                    throw new Error(`남은 사용 시간이 부족합니다.\n(필요 시간: ${formattedRequired}, 보유 시간: ${formattedRemaining})`);
+                }
+            }
+
+            // 검증 완료 후 로딩 바 표시
+            loadingIndicator.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+            const loadingText = loadingIndicator.querySelector('.loading-text');
+
+            // 1) 원본 오디오 파일 사용 (전처리 과정 제거)
+            let finalFile = originalFile;
+            const originalName = originalFile.name || '';
+            let fileExt = originalName.split('.').pop().toLowerCase() || 'wav';
+            let contentType = originalFile.type || 'application/octet-stream';
 
             // 2) Supabase sessions 테이블에 삽입
             loadingText.innerHTML = "세션 정보를 생성하는 중...";
@@ -503,7 +744,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     profession: professionSelect.value,
                     patient_name: originalFile.name,
                     status: 'pending',
-                    memo: memoInput.value
+                    memo: memoInput.value,
+                    duration: Math.ceil(duration)
                 })
                 .select()
                 .single();
@@ -516,13 +758,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 3) Supabase Storage에 직접 업로드
             loadingText.innerHTML = "압축된 음성 파일을 업로드하는 중...";
-            const storagePath = `${session.user.id}/${sessionId}_processed_audio.wav`;
+            const storagePath = `${session.user.id}/${sessionId}_processed_audio.${fileExt}`;
 
             const { data: uploadData, error: uploadErr } = await supabase
                 .storage
                 .from('audio-records')
-                .upload(storagePath, wavBlob, {
-                    contentType: 'audio/wav',
+                .upload(storagePath, finalFile, {
+                    contentType: contentType,
                     cacheControl: '3600',
                     upsert: true
                 });
@@ -533,11 +775,47 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error("음성 파일 업로드 실패: " + uploadErr.message);
             }
 
-            // 4) Supabase Edge Function 호출
+            // 4) Supabase Edge Function 혹은 로컬 백엔드 API 호출
             loadingText.innerHTML = "AI 분석을 시작하는 중...<br/><small>(약 1~2분 소요될 수 있습니다)</small>";
-            const { data: invokeData, error: invokeErr } = await supabase.functions.invoke('analyze', {
-                body: { session_id: sessionId }
-            });
+            let invokeData, invokeErr;
+
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isLocalhost) {
+                console.log("Localhost environment detected, calling local API mimic instead of remote Edge Function.");
+                try {
+                    const res = await fetch('/api/functions/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`
+                        },
+                        body: JSON.stringify({ session_id: sessionId, duration: duration })
+                    });
+                    if (!res.ok) {
+                        let errMsg = `HTTP error ${res.status}`;
+                        try {
+                            const errJson = await res.json();
+                            errMsg = errJson.detail || JSON.stringify(errJson);
+                        } catch (_) {
+                            try {
+                                errMsg = await res.text();
+                            } catch (__) {}
+                        }
+                        invokeErr = { message: errMsg };
+                    } else {
+                        invokeData = await res.json();
+                    }
+                } catch (err) {
+                    invokeErr = err;
+                }
+            } else {
+                console.log("Remote environment detected, calling remote Supabase Edge Function.");
+                const { data, error } = await supabase.functions.invoke('analyze', {
+                    body: { session_id: sessionId, duration: duration }
+                });
+                invokeData = data;
+                invokeErr = error;
+            }
 
             if (invokeErr) {
                 throw new Error("분석 요청 실패: " + invokeErr.message);

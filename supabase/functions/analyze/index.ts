@@ -252,6 +252,35 @@ Deno.serve(async (req) => {
         return new Response("Session not found", { status: 404 });
       }
 
+      // 공통 환불 처리 함수
+      const refundQuota = async () => {
+        try {
+          const { data: prof, error: profErr } = await adminClient
+            .from("profiles")
+            .select("tier, quota_used")
+            .eq("id", session.user_id)
+            .single();
+
+          if (profErr || !prof) {
+            console.error(`[Refund] Failed to load profile for user ${session.user_id}`);
+            return;
+          }
+
+          const tier = prof.tier || 'free';
+          const refundAmount = tier === 'free' ? 1 : Math.ceil((session.duration || 0) / 60) * 60;
+          const newQuotaUsed = Math.max(0, prof.quota_used - refundAmount);
+
+          await adminClient
+            .from("profiles")
+            .update({ quota_used: newQuotaUsed })
+            .eq("id", session.user_id);
+
+          console.log(`[Refund] Webhook refunded ${refundAmount} credits/seconds to user ${session.user_id}. Used: ${prof.quota_used} -> ${newQuotaUsed}`);
+        } catch (refundErr) {
+          console.error("[Refund] Exception during webhook refund process:", refundErr);
+        }
+      };
+
       if (status === "completed") {
         try {
           // Get transcript from Soniox API
@@ -365,6 +394,9 @@ Deno.serve(async (req) => {
             .from("sessions")
             .update({ status: "failed" })
             .eq("id", sessionId);
+          
+          // 오류 발생 시 크레딧 환불
+          await refundQuota();
         } finally {
           // Cleanup audio file from storage (user requested deletion after analysis)
           try {
@@ -401,6 +433,9 @@ Deno.serve(async (req) => {
           .update({ status: "failed" })
           .eq("id", sessionId);
 
+        // 분석 실패 시 크레딧 환불
+        await refundQuota();
+
         // Delete audio from storage even if failed
         try {
           const filePath = `${session.user_id}/${sessionId}_processed_audio.wav`;
@@ -433,9 +468,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { session_id } = await req.json();
-      if (!session_id) {
-        return new Response(JSON.stringify({ detail: "Missing session_id in payload" }), {
+      const { session_id, duration } = await req.json();
+      if (!session_id || duration === undefined) {
+        return new Response(JSON.stringify({ detail: "Missing session_id or duration in payload" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -466,11 +501,12 @@ Deno.serve(async (req) => {
       let quotaDeducted = false;
       const maxRetries = 3;
       let profile: any = null;
+      let deductAmount = 0;
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         const { data: prof, error: profErr } = await adminClient
           .from("profiles")
-          .select("quota_limit, quota_used")
+          .select("tier, quota_limit, quota_used, subscription_id, subscriptions(status, current_period_end)")
           .eq("id", user.id)
           .single();
 
@@ -482,23 +518,95 @@ Deno.serve(async (req) => {
         }
 
         profile = prof;
-        if (prof.quota_limit - prof.quota_used <= 0) {
+        let tier = prof.tier || 'free';
+        let sub: any = prof.subscriptions;
+        if (Array.isArray(sub)) {
+          sub = sub[0];
+        }
+
+        // Check subscription status and handle grace period dynamically
+        if (sub) {
+          if (sub.status === "past_due") {
+            const isExpired = new Date() > new Date(sub.current_period_end);
+            if (isExpired) {
+              console.log(`[Grace Period Expired] Downgrading user ${user.id} due to past_due subscription expired.`);
+              // Update subscription to canceled
+              await adminClient
+                .from("subscriptions")
+                .update({ status: "canceled" })
+                .eq("id", prof.subscription_id);
+
+              // Downgrade profile to free
+              await adminClient
+                .from("profiles")
+                .update({
+                  tier: "free",
+                  subscription_id: null,
+                  quota_limit: 10,
+                  quota_used: 10,
+                })
+                .eq("id", user.id);
+
+              prof.tier = "free";
+              prof.quota_limit = 10;
+              prof.quota_used = 10;
+              tier = "free";
+            }
+          } else if (sub.status === "canceled" && tier !== "free") {
+            console.log(`[Subscription Canceled] Downgrading user ${user.id} to free tier.`);
+            await adminClient
+              .from("profiles")
+              .update({
+                tier: "free",
+                subscription_id: null,
+                quota_limit: 10,
+                quota_used: 10,
+              })
+              .eq("id", user.id);
+
+            prof.tier = "free";
+            prof.quota_limit = 10;
+            prof.quota_used = 10;
+            tier = "free";
+          }
+        }
+
+        if (tier === 'free') {
+          if (duration > 1800) { // 30분 초과 검증
+            return new Response(JSON.stringify({ detail: "Free 등급은 1회 최대 30분까지만 분석이 가능합니다." }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          deductAmount = 1;
+        } else {
+          if (duration > 7200) { // 120분 초과 검증
+            return new Response(JSON.stringify({ detail: "유료 등급은 1회 최대 120분까지만 분석이 가능합니다." }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          // 분 단위 올림 차감 (초 단위 기록)
+          deductAmount = Math.ceil(duration / 60) * 60;
+        }
+
+        if (prof.quota_limit - prof.quota_used < deductAmount) {
           return new Response(
-            JSON.stringify({ detail: "사용 가능한 크레딧이 부족합니다. 구독 서비스 결제가 필요합니다." }),
+            JSON.stringify({ detail: "사용 가능한 크레딧(시간)이 부족합니다. 구독 서비스 결제가 필요합니다." }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
         const { data: updateData, error: updateErr } = await adminClient
           .from("profiles")
-          .update({ quota_used: prof.quota_used + 1 })
+          .update({ quota_used: prof.quota_used + deductAmount })
           .eq("id", user.id)
           .eq("quota_used", prof.quota_used)
           .select();
 
         if (updateData && updateData.length > 0) {
           quotaDeducted = true;
-          console.log(`[Quota] Deducted credit for ${user.email}. Used: ${prof.quota_used} -> ${prof.quota_used + 1}`);
+          console.log(`[Quota] Deducted ${deductAmount} for ${user.email} (${tier}). Used: ${prof.quota_used} -> ${prof.quota_used + deductAmount}`);
           break;
         }
       }

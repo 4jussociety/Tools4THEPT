@@ -2,17 +2,40 @@
 drop table if exists public.results cascade;
 drop table if exists public.sessions cascade;
 drop table if exists public.profiles cascade;
+drop table if exists public.subscriptions cascade;
 
 -- 2. UUID 확장 프로그램 활성화
 create extension if not exists "uuid-ossp";
 
--- 3. profiles 테이블 생성 및 RLS 활성화
+-- 3. subscriptions 테이블 생성 및 RLS 활성화
+create table public.subscriptions (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  status text not null, -- 'active', 'past_due', 'canceled'
+  customer_uid text,
+  merchant_uid text unique,
+  cancel_at_period_end boolean default false,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.subscriptions enable row level security;
+
+-- subscriptions RLS 보안 정책 정의
+create policy "Users can view own subscriptions" on public.subscriptions
+  for select using (auth.uid() = user_id);
+
+-- profiles 테이블 생성 및 RLS 활성화
 create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   name text,
   profession text,
+  tier text default 'free',
+  subscription_id uuid references public.subscriptions(id) on delete set null,
   quota_limit integer default 10,
   quota_used integer default 0,
+  billing_cycle_anchor timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -34,6 +57,7 @@ create table public.sessions (
   status text default 'pending'::text not null,
   memo text,
   audio_url text,
+  duration integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -82,11 +106,12 @@ create policy "Admin / Edge function can update results" on public.results
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, name, profession, quota_limit, quota_used)
+  insert into public.profiles (id, name, profession, tier, quota_limit, quota_used)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', '치료사'),
     coalesce(new.raw_user_meta_data->>'profession', 'pt'),
+    'free',
     10,
     0
   );
@@ -102,11 +127,12 @@ create trigger on_auth_user_created
 
 
 -- 7. [기존 회원 마이그레이션] auth.users에 이미 있는 기존 계정들에 대한 프로필 일괄 생성
-insert into public.profiles (id, name, profession, quota_limit, quota_used)
+insert into public.profiles (id, name, profession, tier, quota_limit, quota_used)
 select 
   id, 
   coalesce(raw_user_meta_data->>'name', '치료사'), 
   coalesce(raw_user_meta_data->>'profession', 'pt'), 
+  'free',
   10, 
   0
 from auth.users
@@ -114,9 +140,9 @@ on conflict (id) do nothing;
 
 
 -- 8. [Storage 설정] audio-records 버킷 생성 및 RLS 정책 정의
-insert into storage.buckets (id, name, public)
-values ('audio-records', 'audio-records', false)
-on conflict (id) do update set public = false;
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('audio-records', 'audio-records', false, 262144000)
+on conflict (id) do update set public = false, file_size_limit = 262144000;
 
 -- 기존 정책 충돌 방지를 위해 모두 삭제 후 재생성
 drop policy if exists "Users can upload own audio files" on storage.objects;

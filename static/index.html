@@ -31,7 +31,7 @@
                     <span id="quota-info" class="badge">남은 횟수: <strong id="quota-remaining">0</strong> / <strong id="quota-limit">0</strong></span>
                 </div>
                 <div class="user-meta-group">
-                    <button id="charge-btn" class="charge-btn">10회 충전(가상)</button>
+                    <button id="charge-btn" class="charge-btn">구독 및 요금제 관리</button>
                     <button id="logout-btn" class="text-link-btn">로그아웃</button>
                 </div>
             </div>
@@ -231,6 +231,70 @@
                         <button type="button" id="toggle-auth-mode-btn" class="text-link-btn" style="margin: 0; text-align: center;">계정이 없으신가요? 회원가입</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 구독 및 요금제 모달 -->
+    <div id="subscription-modal" class="modal hidden">
+        <div class="modal-content glass-panel" style="max-width: 850px;">
+            <div class="modal-header">
+                <h3>💎 AI 음성차팅 구독 요금제 관리</h3>
+                <button id="close-sub-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="pricing-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Free Tier -->
+                    <div class="pricing-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; transition: var(--transition);">
+                        <div>
+                            <h4 style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 0.5rem;">무료 체험 (Free)</h4>
+                            <p style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main);">0원 <span style="font-size: 0.85rem; font-weight: 400; color: var(--text-muted);">/ 평생 무료</span></p>
+                            <ul style="padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.6;">
+                                <li>총 <strong>10회</strong> 무료 분석 제공</li>
+                                <li>1회 분석 최대 <strong>30분</strong> 제한</li>
+                                <li>기본 SOAP 리포트 자동 추출</li>
+                            </ul>
+                        </div>
+                        <button id="sub-free-btn" class="secondary-btn" style="width: 100%; justify-content: center; background: rgba(255, 255, 255, 0.05); font-weight: 600;" disabled>사용 중</button>
+                    </div>
+                    <!-- Basic Tier -->
+                    <div id="card-basic" class="pricing-card" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; transition: var(--transition);">
+                        <div>
+                            <h4 style="color: #818cf8; font-size: 1.1rem; margin-bottom: 0.5rem;">베이직 (Basic)</h4>
+                            <p style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main);">19,900원 <span style="font-size: 0.85rem; font-weight: 400; color: var(--text-muted);">/ 월</span></p>
+                            <ul style="padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.6;">
+                                <li>매월 <strong>100시간</strong> (360,000초) 제공</li>
+                                <li>1회 분석 최대 <strong>120분</strong> 제한</li>
+                                <li>분 단위 올림 차감 (초 단위 정밀 기록)</li>
+                                <li>24시간 결제 실패 유예 지원</li>
+                             </ul>
+                        </div>
+                        <button id="sub-basic-btn" class="charge-btn" style="width: 100%; font-weight: 600;">구독하기</button>
+                    </div>
+                    <!-- Premium Tier -->
+                    <div id="card-premium" class="pricing-card" style="background: rgba(236, 72, 153, 0.03); border: 1px solid rgba(236, 72, 153, 0.2); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; transition: var(--transition);">
+                         <div>
+                             <h4 style="color: #f43f5e; font-size: 1.1rem; margin-bottom: 0.5rem;">프리미엄 (Premium)</h4>
+                             <p style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main);">29,900원 <span style="font-size: 0.85rem; font-weight: 400; color: var(--text-muted);">/ 월</span></p>
+                             <ul style="padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.6;">
+                                 <li>매월 <strong>200시간</strong> (720,000초) 제공</li>
+                                 <li>1회 분석 최대 <strong>120분</strong> 제한</li>
+                                 <li>분 단위 올림 차감 (초 단위 정밀 기록)</li>
+                                 <li>24시간 결제 실패 유예 지원</li>
+                             </ul>
+                         </div>
+                         <button id="sub-premium-btn" class="charge-btn" style="width: 100%; font-weight: 600; background: linear-gradient(to right, #ec4899, #f43f5e);">구독하기</button>
+                    </div>
+                </div>
+                
+                <!-- Refund / Cancel Management -->
+                <div id="cancel-sub-section" class="hidden" style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                     <div>
+                         <p style="font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;">구독 해지 및 환불 신청</p>
+                         <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">결제 후 7일 이내 사용량이 0초인 경우 즉시 전액 환불 및 free 등급 강등 처리가 실행됩니다.</p>
+                     </div>
+                     <button id="cancel-sub-btn" class="secondary-btn" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3); font-weight: 600;">구독 해지 / 환불</button>
+                </div>
             </div>
         </div>
     </div>
