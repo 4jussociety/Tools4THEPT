@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 라우터 임포트
-from routers import sessions, profile
+from routers import sessions, profile, patients
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -32,6 +32,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # 라우터 마운트
 app.include_router(sessions.router)
 app.include_router(profile.router)
+app.include_router(patients.router)
 
 from fastapi import BackgroundTasks, Request, Depends, HTTPException
 from auth_middleware import get_current_user_id

@@ -1,6 +1,7 @@
 -- 1. 기존 테이블 및 관련 정책 일괄 삭제 (외래키 연쇄 삭제 적용)
 drop table if exists public.results cascade;
 drop table if exists public.sessions cascade;
+drop table if exists public.patients cascade;
 drop table if exists public.profiles cascade;
 drop table if exists public.subscriptions cascade;
 
@@ -48,10 +49,35 @@ create policy "Users can update own profile" on public.profiles
   for update using (auth.uid() = id);
 
 
--- 4. sessions 테이블 생성 및 RLS 활성화
+-- 4. patients 테이블 생성 및 RLS 활성화
+create table public.patients (
+  id uuid default gen_random_uuid() primary key,
+  therapist_id uuid references auth.users on delete cascade not null,
+  name text not null,
+  birth_date date not null,
+  gender text check (gender in ('M', 'F', 'Other')) not null,
+  chart_number text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.patients enable row level security;
+
+-- patients RLS 보안 정책 정의
+create policy "Users can view own patients" on public.patients
+  for select using (auth.uid() = therapist_id);
+create policy "Users can insert own patients" on public.patients
+  for insert with check (auth.uid() = therapist_id);
+create policy "Users can update own patients" on public.patients
+  for update using (auth.uid() = therapist_id);
+create policy "Users can delete own patients" on public.patients
+  for delete using (auth.uid() = therapist_id);
+
+
+-- 5. sessions 테이블 생성 및 RLS 활성화
 create table public.sessions (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users on delete cascade not null,
+  patient_id uuid references public.patients(id) on delete set null,
   profession text not null,
   patient_name text not null,
   status text default 'pending'::text not null,
@@ -74,7 +100,7 @@ create policy "Users can delete own sessions" on public.sessions
   for delete using (auth.uid() = user_id);
 
 
--- 5. results 테이블 생성 및 RLS 활성화
+-- 6. results 테이블 생성 및 RLS 활성화
 create table public.results (
   id uuid default gen_random_uuid() primary key,
   session_id uuid references public.sessions on delete cascade not null,

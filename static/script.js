@@ -9,8 +9,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('upload-form');
     const loadingIndicator = document.getElementById('loading-indicator');
     const resultsSection = document.getElementById('results-section');
+    const formSection = document.getElementById('form-section');
+    const newSessionBtn = document.getElementById('new-session-btn');
     const memoInput = document.getElementById('memo-input');
     const professionSelect = document.getElementById('profession');
+    
+    // Patient Elements
+    const patientSelect = document.getElementById('patient-select');
+    const patientSelectContainer = document.getElementById('patient-select-container');
+    const patientSelectTrigger = document.getElementById('patient-select-trigger');
+    const patientSearchInput = document.getElementById('patient-search-input');
+    const patientSelectOptions = document.getElementById('patient-select-options');
+    const selectedPatientCard = document.getElementById('selected-patient-card');
+    const selectedPatientCardName = document.getElementById('selected-patient-card-name');
+    const selectedPatientCardMeta = document.getElementById('selected-patient-card-meta');
+    
+    const openRegisterPatientBtn = document.getElementById('open-register-patient-btn');
+    const patientRegisterModal = document.getElementById('patient-register-modal');
+    const closePatientModalBtn = document.getElementById('close-patient-modal-btn');
+    const patientRegisterForm = document.getElementById('patient-register-form');
+    const patientNameInput = document.getElementById('patient-name');
+    const patientBirthInput = document.getElementById('patient-birth');
+    const patientGenderSelect = document.getElementById('patient-gender');
+    const patientChartNumberInput = document.getElementById('patient-chart-number');
+    const historyPatientFilter = document.getElementById('history-patient-filter');
+    const historySearchInput = document.getElementById('history-search');
     
     // Auth Elements
     const userInfo = document.getElementById('user-info');
@@ -217,6 +240,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         return new Blob([view], { type: 'audio/wav' });
     }
 
+    function switchWorkspaceState(state) {
+        if (state === 'form') {
+            if (formSection) formSection.classList.remove('hidden');
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            if (resultsSection) resultsSection.classList.add('hidden');
+        } else if (state === 'loading') {
+            if (formSection) formSection.classList.add('hidden');
+            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+            if (resultsSection) resultsSection.classList.add('hidden');
+        } else if (state === 'results') {
+            if (formSection) formSection.classList.add('hidden');
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            if (resultsSection) resultsSection.classList.remove('hidden');
+        }
+    }
+
     function initAuthListener() {
         supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
@@ -228,8 +267,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 authModal.classList.add('hidden');
                 
                 submitBtn.disabled = !inputElement.files.length;
+                switchWorkspaceState('form');
                 
                 await updateProfileInfo();
+                await loadPatients();
                 await loadHistory();
             } else {
                 isLoggedIn = false;
@@ -237,8 +278,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 authButtons.classList.remove('hidden');
                 
                 submitBtn.disabled = true;
-                resultsSection.classList.add('hidden');
+                switchWorkspaceState('form');
                 historyList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-size: 0.9rem;">로그인 후 사용 이력을 불러옵니다.</div>`;
+                if (patientSelect) {
+                    patientSelect.value = '';
+                }
+                if (patientSelectTrigger) {
+                    patientSelectTrigger.textContent = '로그인 후 환자를 선택하거나 등록해 주세요.';
+                }
+                if (selectedPatientCard) {
+                    selectedPatientCard.classList.add('hidden');
+                }
+                if (historyPatientFilter) {
+                    historyPatientFilter.innerHTML = '<option value="">전체 환자 보기</option>';
+                }
+                if (historySearchInput) {
+                    historySearchInput.value = '';
+                }
+                document.querySelectorAll('#history-status-chips .filter-chip').forEach((c, idx) => {
+                    if (idx === 0) c.classList.add('active');
+                    else c.classList.remove('active');
+                });
             }
         });
     }
@@ -276,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 사용자 프로필 및 Quota 정보 업데이트 (Supabase RLS 조회로 전면 변경)
-    async function updateProfileInfo() {
+    async function updateProfileInfo(retryCount = 0) {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
@@ -287,40 +347,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .eq('id', session.user.id)
                 .single();
             
-            if (error) throw error;
+            if (error || !profile) {
+                // Profile may not exist yet right after signup (trigger timing)
+                if (retryCount < 2) {
+                    console.warn(`Profile not found, retrying in 1.5s... (attempt ${retryCount + 1})`);
+                    await new Promise(r => setTimeout(r, 1500));
+                    return updateProfileInfo(retryCount + 1);
+                }
+                throw error || new Error("Profile not found after retries");
+            }
 
-            if (profile) {
-                const tier = profile.tier || 'free';
-                const quotaInfo = document.getElementById('quota-info');
+            const tier = profile.tier || 'free';
+            const quotaInfo = document.getElementById('quota-info');
+            
+            if (tier === 'free') {
+                const remaining = Math.max(0, profile.quota_limit - profile.quota_used);
+                quotaInfo.innerHTML = `남은 횟수: <strong id="quota-remaining">${remaining}</strong> / <strong id="quota-limit">${profile.quota_limit}</strong>회 (최대 30분)`;
                 
-                if (tier === 'free') {
-                    const remaining = Math.max(0, profile.quota_limit - profile.quota_used);
-                    quotaInfo.innerHTML = `남은 횟수: <strong id="quota-remaining">${remaining}</strong> / <strong id="quota-limit">${profile.quota_limit}</strong>회 (최대 30분)`;
-                    
-                    const quotaRemainingEl = document.getElementById('quota-remaining');
-                    if (remaining <= 0) {
-                        quotaRemainingEl.style.color = '#ef4444';
-                    } else {
-                        quotaRemainingEl.style.color = 'var(--primary)';
-                    }
+                const quotaRemainingEl = document.getElementById('quota-remaining');
+                if (remaining <= 0) {
+                    quotaRemainingEl.style.color = '#ef4444';
                 } else {
-                    const remainingSeconds = Math.max(0, profile.quota_limit - profile.quota_used);
-                    const formattedRemaining = formatSecondsToTime(remainingSeconds);
-                    const formattedLimit = formatSecondsToTime(profile.quota_limit);
-                    const tierName = tier === 'basic' ? '베이직' : '프리미엄';
-                    
-                    quotaInfo.innerHTML = `남은 시간: <strong id="quota-remaining">${formattedRemaining}</strong> / <strong id="quota-limit">${formattedLimit}</strong> (${tierName})`;
-                    
-                    const quotaRemainingEl = document.getElementById('quota-remaining');
-                    if (remainingSeconds <= 0) {
-                        quotaRemainingEl.style.color = '#ef4444';
-                    } else {
-                        quotaRemainingEl.style.color = 'var(--primary)';
-                    }
+                    quotaRemainingEl.style.color = 'var(--primary)';
+                }
+            } else {
+                const remainingSeconds = Math.max(0, profile.quota_limit - profile.quota_used);
+                const formattedRemaining = formatSecondsToTime(remainingSeconds);
+                const formattedLimit = formatSecondsToTime(profile.quota_limit);
+                const tierName = tier === 'basic' ? '베이직' : '프리미엄';
+                
+                quotaInfo.innerHTML = `남은 시간: <strong id="quota-remaining">${formattedRemaining}</strong> / <strong id="quota-limit">${formattedLimit}</strong> (${tierName})`;
+                
+                const quotaRemainingEl = document.getElementById('quota-remaining');
+                if (remainingSeconds <= 0) {
+                    quotaRemainingEl.style.color = '#ef4444';
+                } else {
+                    quotaRemainingEl.style.color = 'var(--primary)';
                 }
             }
         } catch (err) {
             console.error("Failed to load profile:", err);
+            // Show default free-tier values instead of 0/0
+            const quotaInfo = document.getElementById('quota-info');
+            if (quotaInfo) {
+                quotaInfo.innerHTML = `남은 횟수: <strong id="quota-remaining" style="color: var(--text-muted);">-</strong> / <strong id="quota-limit">-</strong> (조회 실패)`;
+            }
         }
     }
 
@@ -594,6 +665,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    function updateThumbnail(dropZoneElement, file) {
+        let thumbnailElement = dropZoneElement.querySelector(".drop-zone__thumb");
+
+        if (dropZoneElement.querySelector(".drop-zone__prompt")) {
+            dropZoneElement.querySelector(".drop-zone__prompt").style.display = "none";
+        }
+
+        if (!thumbnailElement) {
+            thumbnailElement = document.createElement("div");
+            thumbnailElement.className = "drop-zone__thumb";
+            dropZoneElement.appendChild(thumbnailElement);
+        }
+
+        thumbnailElement.dataset.label = file.name;
+
+        thumbnailElement.innerHTML = `
+            <div class="drop-zone__thumb-icon">
+                <i data-lucide="file-audio"></i>
+            </div>
+            <div class="drop-zone__thumb-label">${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)</div>
+        `;
+        lucide.createIcons();
+    }
+
     // 드래그 앤 드롭 파일 인터랙션
     dropZoneElement.addEventListener('click', () => {
         if (isLoggedIn) {
@@ -634,41 +729,325 @@ document.addEventListener('DOMContentLoaded', async () => {
         dropZoneElement.classList.remove('drop-zone--over');
     });
 
-    function updateThumbnail(dropZoneElement, file) {
-        let promptElement = dropZoneElement.querySelector('.drop-zone__prompt');
-        if (promptElement) {
-            promptElement.innerHTML = `<strong>선택됨:</strong><br>${file.name}<br><small>(${Math.round(file.size / 1024 / 1024 * 100) / 100} MB)</small>`;
-            promptElement.style.color = 'var(--primary)';
+    // Patient Registration & List Management
+    let allPatientsCached = [];
+
+    function calculateAge(birthDateString) {
+        const today = new Date();
+        const birthDate = new Date(birthDateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+
+    async function loadPatients(selectedId = null) {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            let patients = [];
+
+            // Try local API first, then fallback to direct Supabase SDK query
+            try {
+                const res = await fetch('/api/patients', {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+                if (!res.ok) throw new Error(`API returned ${res.status}`);
+                patients = await res.json();
+            } catch (apiErr) {
+                console.warn("Local /api/patients failed, using Supabase SDK fallback:", apiErr.message);
+                const { data, error } = await supabase
+                    .from('patients')
+                    .select('*')
+                    .order('name');
+                if (error) throw error;
+                patients = data || [];
+            }
+
+            allPatientsCached = patients;
+            renderCustomSelectOptions(allPatientsCached, selectedId);
+            updateHistoryPatientFilter(allPatientsCached);
+        } catch (err) {
+            console.error("Failed to load patients:", err);
+            // Even on total failure, show proper logged-in state
+            allPatientsCached = [];
+            renderCustomSelectOptions([], null);
         }
     }
 
-    // 녹음 가이드 모달 인터랙션
-    openGuideBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        guideModal.classList.remove('hidden');
+    function renderCustomSelectOptions(patients, selectedId = null) {
+        patientSelectOptions.innerHTML = '';
+        
+        if (!patients || patients.length === 0) {
+            const div = document.createElement('div');
+            div.className = 'custom-select-option disabled';
+            div.textContent = '등록된 환자가 없습니다. 새 환자를 등록해 주세요.';
+            patientSelectOptions.appendChild(div);
+            
+            patientSelectTrigger.textContent = '등록된 환자가 없습니다.';
+            patientSelect.value = '';
+            selectedPatientCard.classList.add('hidden');
+            return;
+        }
+
+        let selectedPatient = null;
+
+        patients.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'custom-select-option';
+            if (selectedId && p.id === selectedId) {
+                div.classList.add('selected');
+                selectedPatient = p;
+            }
+            div.setAttribute('data-value', p.id);
+            const chartInfo = p.chart_number ? ` [${p.chart_number}]` : '';
+            div.textContent = `${p.name} (${p.birth_date})${chartInfo}`;
+
+            div.addEventListener('click', () => {
+                selectPatientItem(p);
+            });
+
+            patientSelectOptions.appendChild(div);
+        });
+
+        if (selectedPatient) {
+            selectPatientItem(selectedPatient);
+        } else {
+            patientSelectTrigger.textContent = '환자를 선택해 주세요.';
+            patientSelect.value = '';
+            selectedPatientCard.classList.add('hidden');
+        }
+        lucide.createIcons();
+    }
+
+    function selectPatientItem(p) {
+        document.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
+        const optionEl = document.querySelector(`.custom-select-option[data-value="${p.id}"]`);
+        if (optionEl) optionEl.classList.add('selected');
+
+        const chartInfo = p.chart_number ? ` [${p.chart_number}]` : '';
+        patientSelectTrigger.textContent = `${p.name} (${p.birth_date})${chartInfo}`;
+        patientSelect.value = p.id;
+        
+        selectedPatientCard.classList.remove('hidden');
+        const age = calculateAge(p.birth_date);
+        const genderKor = { M: '남성', F: '여성', Other: '기타' }[p.gender] || p.gender;
+        const chartNo = p.chart_number ? ` (Chart: ${p.chart_number})` : ' (차트 번호 없음)';
+        
+        selectedPatientCardName.textContent = p.name;
+        selectedPatientCardMeta.textContent = `만 ${age}세 • ${genderKor}${chartNo}`;
+
+        patientSelectContainer.classList.remove('open');
+        patientSearchInput.value = '';
+        filterCustomSelectOptions('');
+        lucide.createIcons();
+    }
+
+    function filterCustomSelectOptions(searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        const options = patientSelectOptions.querySelectorAll('.custom-select-option:not(.disabled)');
+        
+        options.forEach(opt => {
+            const text = opt.textContent.toLowerCase();
+            if (text.includes(term)) {
+                opt.style.display = 'block';
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+    }
+
+    function updateHistoryPatientFilter(patients) {
+        if (!historyPatientFilter) return;
+        const currentVal = historyPatientFilter.value;
+        historyPatientFilter.innerHTML = '<option value="">전체 환자 보기</option>';
+        if (patients && patients.length > 0) {
+            patients.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.name} (${p.birth_date})`;
+                if (currentVal && p.id === currentVal) {
+                    opt.selected = true;
+                }
+                historyPatientFilter.appendChild(opt);
+            });
+        }
+    }
+
+    if (patientSelectTrigger) {
+        patientSelectTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!isLoggedIn) {
+                alert("로그인이 필요합니다.");
+                openLoginBtn.click();
+                return;
+            }
+            patientSelectContainer.classList.toggle('open');
+            if (patientSelectContainer.classList.contains('open')) {
+                patientSearchInput.focus();
+            }
+        });
+    }
+
+    if (patientSearchInput) {
+        patientSearchInput.addEventListener('input', (e) => {
+            filterCustomSelectOptions(e.target.value);
+        });
+        patientSearchInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (patientSelectContainer && !patientSelectContainer.contains(e.target)) {
+            patientSelectContainer.classList.remove('open');
+        }
     });
 
-    closeGuideBtn.addEventListener('click', () => {
-        guideModal.classList.add('hidden');
+    if (newSessionBtn) {
+        newSessionBtn.addEventListener('click', () => {
+            document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+            
+            form.reset();
+            if (patientSelect) patientSelect.value = '';
+            if (patientSelectTrigger) {
+                patientSelectTrigger.textContent = isLoggedIn ? '환자를 선택해 주세요.' : '로그인 후 환자를 선택하거나 등록해 주세요.';
+            }
+            if (selectedPatientCard) selectedPatientCard.classList.add('hidden');
+            
+            const thumbnailElement = dropZoneElement.querySelector('.drop-zone__thumb');
+            if (thumbnailElement) {
+                thumbnailElement.remove();
+            }
+            const promptElement = dropZoneElement.querySelector('.drop-zone__prompt');
+            if (promptElement) {
+                promptElement.style.display = 'block';
+            }
+            
+            submitBtn.disabled = true;
+            dropZoneElement.style.pointerEvents = 'auto';
+            
+            switchWorkspaceState('form');
+        });
+    }
+
+    if (historyPatientFilter) {
+        historyPatientFilter.addEventListener('change', () => {
+            loadHistory();
+        });
+    }
+
+    if (historySearchInput) {
+        historySearchInput.addEventListener('input', () => {
+            loadHistory();
+        });
+    }
+
+    const statusChips = document.querySelectorAll('#history-status-chips .filter-chip');
+    statusChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            statusChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            loadHistory();
+        });
     });
 
-    window.addEventListener('click', (e) => {
-        if (e.target === guideModal) {
-            guideModal.classList.add('hidden');
-        }
-        if (e.target === authModal) {
-            authModal.classList.add('hidden');
-        }
-        if (e.target === subModal) {
-            subModal.classList.add('hidden');
-        }
-    });
+    if (openRegisterPatientBtn) {
+        openRegisterPatientBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!isLoggedIn) {
+                alert("로그인이 필요합니다.");
+                openLoginBtn.click();
+                return;
+            }
+            patientRegisterModal.classList.remove('hidden');
+        });
+    }
 
-    // 5. 비동기 업로드 및 폴링 메커니즘 (Supabase 단독 서버리스로 전면 변경)
+    if (closePatientModalBtn) {
+        closePatientModalBtn.addEventListener('click', () => {
+            patientRegisterModal.classList.add('hidden');
+        });
+    }
+
+    if (patientRegisterForm) {
+        patientRegisterForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert("로그인이 필요한 기능입니다.");
+                return;
+            }
+
+            const name = patientNameInput.value.trim();
+            const birthDate = patientBirthInput.value;
+            const gender = patientGenderSelect.value;
+            const chartNumber = patientChartNumberInput.value.trim() || null;
+
+            const submitBtnEl = document.getElementById('patient-submit-btn');
+            if (submitBtnEl) {
+                submitBtnEl.disabled = true;
+                submitBtnEl.textContent = "등록 중...";
+            }
+
+            try {
+                const res = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        birth_date: birthDate,
+                        gender: gender,
+                        chart_number: chartNumber
+                    })
+                });
+
+                if (!res.ok) {
+                    let errMsg = "등록 실패";
+                    try {
+                        const json = await res.json();
+                        errMsg = json.detail || json.message || errMsg;
+                    } catch (_) {}
+                    throw new Error(errMsg);
+                }
+
+                const newPatient = await res.json();
+                alert(`환자 "${name}" 등록이 완료되었습니다.`);
+                
+                patientRegisterForm.reset();
+                patientRegisterModal.classList.add('hidden');
+
+                await loadPatients(newPatient.id);
+
+            } catch (err) {
+                alert("환자 등록 오류: " + err.message);
+            } finally {
+                if (submitBtnEl) {
+                    submitBtnEl.disabled = false;
+                    submitBtnEl.textContent = "환자 등록 완료";
+                }
+            }
+        });
+    }
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         if (!inputElement.files.length) return;
+
+        const selectedPatientId = patientSelect.value;
+        if (!selectedPatientId) {
+            alert("대상 환자를 선택해 주세요.");
+            return;
+        }
         
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
@@ -679,18 +1058,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const originalFile = inputElement.files[0];
         
-        // UI 잠금 및 로딩 상태 (검증이 실패할 수 있으므로 임시 변수 제어 및 오류 발생 시 환불)
         submitBtn.disabled = true;
         dropZoneElement.style.pointerEvents = 'none';
 
         try {
-            // 0) 오디오 재생 시간 사전 측정 및 요금제별 제한 검증
             const duration = await getAudioDuration(originalFile);
             if (duration <= 0) {
                 throw new Error("올바르지 않은 오디오 파일이거나 오디오의 길이를 측정할 수 없습니다.");
             }
 
-            // 사용자 프로필 데이터 실시간 조회
             const { data: profile, error: profileErr } = await supabase
                 .from('profiles')
                 .select('tier, quota_limit, quota_used')
@@ -705,17 +1081,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const remaining = profile.quota_limit - profile.quota_used;
 
             if (tier === 'free') {
-                if (duration > 1800) { // 30분
+                if (duration > 1800) {
                     throw new Error("무료 체험(Free) 등급은 1회 최대 30분까지만 업로드 및 분석이 가능합니다.");
                 }
                 if (remaining <= 0) {
                     throw new Error("무료 체험 분석 횟수(10회)를 모두 소진하셨습니다. 정기 구독 결제가 필요합니다.");
                 }
             } else {
-                if (duration > 7200) { // 120분
+                if (duration > 7200) {
                     throw new Error("정기 구독 등급은 1회 최대 120분(2시간)까지만 분석이 가능합니다.");
                 }
-                // 초 단위를 분 단위로 올림하여 필요 차감 시간 계산
                 const requiredSeconds = Math.ceil(duration / 60) * 60;
                 if (remaining < requiredSeconds) {
                     const formattedRequired = formatSecondsToTime(requiredSeconds);
@@ -724,23 +1099,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // 검증 완료 후 로딩 바 표시
-            loadingIndicator.classList.remove('hidden');
-            resultsSection.classList.add('hidden');
+            switchWorkspaceState('loading');
             const loadingText = loadingIndicator.querySelector('.loading-text');
 
-            // 1) 원본 오디오 파일 사용 (전처리 과정 제거)
             let finalFile = originalFile;
             const originalName = originalFile.name || '';
             let fileExt = originalName.split('.').pop().toLowerCase() || 'wav';
             let contentType = originalFile.type || 'application/octet-stream';
 
-            // 2) Supabase sessions 테이블에 삽입
             loadingText.innerHTML = "세션 정보를 생성하는 중...";
             const { data: sessionData, error: sessionErr } = await supabase
                 .from('sessions')
                 .insert({
                     user_id: session.user.id,
+                    patient_id: selectedPatientId,
                     profession: professionSelect.value,
                     patient_name: originalFile.name,
                     status: 'pending',
@@ -756,9 +1128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const sessionId = sessionData.id;
 
-            // 3) Supabase Storage에 직접 업로드
             loadingText.innerHTML = "압축된 음성 파일을 업로드하는 중...";
-            const storagePath = `${session.user.id}/${sessionId}_processed_audio.${fileExt}`;
+            const storagePath = `${session.user.id}/${selectedPatientId}/${sessionId}_processed_audio.${fileExt}`;
 
             const { data: uploadData, error: uploadErr } = await supabase
                 .storage
@@ -770,12 +1141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
             if (uploadErr) {
-                // DB에서 세션 삭제하여 정리
                 await supabase.from('sessions').delete().eq('id', sessionId);
                 throw new Error("음성 파일 업로드 실패: " + uploadErr.message);
             }
 
-            // 4) Supabase Edge Function 혹은 로컬 백엔드 API 호출
             loadingText.innerHTML = "AI 분석을 시작하는 중...<br/><small>(약 1~2분 소요될 수 있습니다)</small>";
             let invokeData, invokeErr;
 
@@ -821,7 +1190,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error("분석 요청 실패: " + invokeErr.message);
             }
 
-            // 5) 이전 차팅 내역 새로고침 및 폴링 시작
             await loadHistory();
             startPollingSession(sessionId);
 
@@ -833,12 +1201,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function resetUploadUI() {
-        loadingIndicator.classList.add('hidden');
+        switchWorkspaceState('form');
         submitBtn.disabled = false;
         dropZoneElement.style.pointerEvents = 'auto';
     }
 
-    // 분석 작업 진행 상태 폴링 함수 (Supabase RLS 조회로 전면 변경)
     function startPollingSession(sessionId) {
         if (pollingInterval) clearInterval(pollingInterval);
         
@@ -877,20 +1244,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 3000);
     }
 
-    // 히스토리(이력) 목록 제어 (Supabase RLS 조회로 전면 변경)
     async function loadHistory() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            const { data: sessions, error } = await supabase
-                .from('sessions')
-                .select('id, patient_name, status, profession, created_at')
-                .eq('user_id', session.user.id)
-                .order('created_at', { ascending: false });
+            let sessions = [];
+            let joinFailed = false;
+
+            // Primary query with patient join
+            try {
+                const { data, error } = await supabase
+                    .from('sessions')
+                    .select('id, patient_name, status, profession, created_at, patient_id, memo, patients(name)')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                sessions = data || [];
+            } catch (joinErr) {
+                // Fallback: PGRST200 schema cache miss or other join error
+                console.warn("History join query failed, using fallback without join:", joinErr);
+                joinFailed = true;
+                const { data, error } = await supabase
+                    .from('sessions')
+                    .select('id, patient_name, status, profession, created_at, patient_id, memo')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                sessions = (data || []).map(s => {
+                    // Map patient name from local cache
+                    const cachedPatient = allPatientsCached.find(p => p.id === s.patient_id);
+                    return { ...s, patients: cachedPatient ? { name: cachedPatient.name } : null };
+                });
+            }
+
+            let filteredSessions = sessions;
             
-            if (error) throw error;
-            renderHistoryList(sessions);
+            // 1. Patient select filter
+            if (historyPatientFilter && historyPatientFilter.value) {
+                const filterVal = historyPatientFilter.value;
+                filteredSessions = filteredSessions.filter(s => s.patient_id === filterVal);
+            }
+            
+            // 2. Status chips filter
+            const activeStatusChip = document.querySelector('#history-status-chips .filter-chip.active');
+            if (activeStatusChip) {
+                const statusVal = activeStatusChip.getAttribute('data-status');
+                if (statusVal && statusVal !== 'all') {
+                    filteredSessions = filteredSessions.filter(s => s.status === statusVal);
+                }
+            }
+
+            // 3. Search keyword filter
+            if (historySearchInput && historySearchInput.value.trim()) {
+                const keyword = historySearchInput.value.toLowerCase().trim();
+                filteredSessions = filteredSessions.filter(s => {
+                    const patName = (s.patients?.name || '').toLowerCase();
+                    const memoText = (s.memo || '').toLowerCase();
+                    const profText = (s.profession || '').toLowerCase();
+                    const filename = (s.patient_name || '').toLowerCase();
+                    return patName.includes(keyword) || memoText.includes(keyword) || profText.includes(keyword) || filename.includes(keyword);
+                });
+            }
+
+            renderHistoryList(filteredSessions);
         } catch (err) {
             console.error("Failed to load history:", err);
         }
@@ -928,10 +1347,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 failed: '실패'
             }[session.status] || session.status;
 
+            const patientName = session.patients?.name || "미지정 환자";
+            const tooltipText = `파일명: ${session.patient_name}`;
+            
+            const themeClass = {
+                pt: 'pt-theme',
+                ot: 'ot-theme',
+                st: 'st-theme',
+                rehab: 'rehab-theme'
+            }[session.profession] || '';
+
             return `
-                <div class="history-item" data-id="${session.id}">
+                <div class="history-item ${themeClass}" data-id="${session.id}">
                     <div class="history-meta">
-                        <span class="history-patient" title="${session.patient_name}">${session.patient_name}</span>
+                        <span class="history-patient" title="${tooltipText}">${patientName}</span>
                         <span class="status-badge status-${session.status}">${statusKor}</span>
                     </div>
                     <div class="history-meta" style="margin-top: 4px;">
@@ -971,7 +1400,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 개별 세션 상세 및 결과 데이터 로드 (Supabase RLS 조회로 전면 변경)
     async function loadSessionDetail(sessionId) {
         try {
             const { data: session, error } = await supabase
@@ -997,11 +1425,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (session.status === 'pending' || session.status === 'processing') {
                     submitBtn.disabled = true;
                     dropZoneElement.style.pointerEvents = 'none';
-                    loadingIndicator.classList.remove('hidden');
-                    resultsSection.classList.add('hidden');
+                    switchWorkspaceState('loading');
                     startPollingSession(sessionId);
                 } else if (session.status === 'completed') {
-                    // Fetch results
                     const { data: result, error: resultErr } = await supabase
                         .from('results')
                         .select('*')
@@ -1028,11 +1454,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         
                         lastResultData = responseData.results;
                         displayResults(responseData.results);
-                        resultsSection.classList.remove('hidden');
+                        switchWorkspaceState('results');
                     }
                 } else {
                     alert("해당 세션은 분석 도중 실패했습니다.");
-                    resultsSection.classList.add('hidden');
+                    switchWorkspaceState('form');
                 }
             }
         } catch (err) {
@@ -1040,7 +1466,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 결과 렌더링 함수
     function displayResults(results) {
         if (!results) return;
 
@@ -1060,7 +1485,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         lucide.createIcons();
     }
 
-    // 결과 탭 제어 로직
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
@@ -1072,7 +1496,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // 클립보드 복사 로직
     copyBtn.addEventListener('click', () => {
         const activeTab = document.querySelector('.tab-content.active');
         if (!activeTab) return;
@@ -1095,7 +1518,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // CSV 파일 다운로드 기능
     downloadCsvBtn.addEventListener('click', () => {
         if (!lastResultData) return;
 
@@ -1140,7 +1562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         rows.push(["환자 가이드", lastResultData.guide_content || ""]);
         rows.push(["보정 녹취록", lastResultData.refined_transcript || ""]);
 
-        let csvContent = "\uFEFF"; // BOM
+        let csvContent = "\uFEFF";
         rows.forEach(row => {
             const processedRow = row.map(val => {
                 let cell = val === null || val === undefined ? "" : String(val);
@@ -1164,41 +1586,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.removeChild(link);
     });
 
-    // 임상 차트(SOAP) 구조화 렌더링 헬퍼
     function renderChart(chartData, container) {
+        container.innerHTML = '';
+        container.className = 'chart-container';
+
         const labels = {
-            subjective: 'S. 주관적 소견 (Subjective)',
-            chief_complaint: '주호소',
-            pain_scale: '통증 척도',
+            chief_complaint: '주호소 (Chief Complaint)',
+            pain_scale: '통증 척도 (Pain Scale)',
             aggravating_easing_factors: '악화/완화 요인',
             precautions_contraindications: '주의/금기사항',
-            objective: 'O. 객관적 소견 (Objective)',
-            observation_posture: '시각적 관찰',
-            physical_examination: '기능 검사 및 평가',
-            assessment: 'A. 평가 (Assessment)',
-            therapist_diagnosis: '치료사 진단 (음성 녹취 기반)',
-            ai_diagnosis_inferred: 'AI 진단 (문맥 기반 추론)',
-            clinical_impression: '임상적 추론',
+            observation_posture: '시각적 관찰 (Observation)',
+            physical_examination: '기능 검사 및 평가 (Exam)',
+            therapist_diagnosis: '치료사 진단 (Voice-based)',
+            ai_diagnosis_inferred: 'AI 진단 (Context-inferred)',
+            clinical_impression: '임상적 추론 (Impression)',
             progress: '경과 및 호전도',
-            plan: 'P. 치료 계획 (Plan)',
-            treatment_performed: '수행된 중재',
+            treatment_performed: '수행된 중재 (Intervention)',
             home_exercise: '자가 운동 (HEP)',
-            future_plan: '향후 계획',
-            rapport_data: '🤝 라포 데이터 (Rapport)',
-            personal_background: '개인 배경 (가족/직업/취미 등)',
-            patient_preferences: '환자 선호도',
-            psychosocial_factors: '심리적 상태, 사회적 지지 체계 등 심리사회적 요인',
-            compliance_attitude: '순응도 및 태도',
-            upcoming_events: '향후 일정 (여행/행사 등)',
-            follow_up_cues: '다음 방문 시 참고사항'
+            future_plan: '향후 계획'
         };
 
-        let md = "";
+        const soapGrid = document.createElement('div');
+        soapGrid.className = 'soap-card-grid';
 
-        const addSection = (titleKey, contentObj) => {
-            if (!contentObj) return;
-            md += `### ${labels[titleKey] || titleKey}\n`;
-            for (const [key, value] of Object.entries(contentObj)) {
+        const createSoapBox = (type, title, iconName, dataObj) => {
+            if (!dataObj) return null;
+            
+            const box = document.createElement('div');
+            box.className = `soap-box soap-${type}`;
+
+            const header = document.createElement('div');
+            header.className = 'soap-box-header';
+            header.innerHTML = `
+                <div class="soap-icon-wrapper"><i data-lucide="${iconName}"></i></div>
+                <div class="soap-box-title">${title}</div>
+            `;
+            box.appendChild(header);
+
+            for (const [key, value] of Object.entries(dataObj)) {
                 const label = labels[key] || key;
                 let valStr = "언급 없음";
                 
@@ -1209,35 +1634,116 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (value && value !== "언급 없음") {
                     valStr = value;
                 }
+
+                const row = document.createElement('div');
+                row.className = 'soap-item-row';
                 
-                md += `* **${label}**: ${valStr}\n`;
+                if (key === 'pain_scale' && valStr !== "언급 없음") {
+                    const numericPain = parseInt(valStr.replace(/[^0-9]/g, '')) || 0;
+                    const fillPercent = (Math.min(Math.max(numericPain, 0), 10) / 10) * 100;
+                    
+                    let pillColor = '#22c55e';
+                    if (numericPain >= 7) pillColor = '#ef4444';
+                    else if (numericPain >= 4) pillColor = '#eab308';
+                    
+                    row.innerHTML = `
+                        <div class="soap-item-label">${label}</div>
+                        <div class="pain-scale-badge-container">
+                            <div class="pain-scale-track">
+                                <div class="pain-scale-fill" style="width: ${fillPercent}%;"></div>
+                            </div>
+                            <span class="pain-scale-value-pill" style="background-color: ${pillColor};">VAS ${numericPain}</span>
+                        </div>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <div class="soap-item-label">${label}</div>
+                        <div class="soap-item-value">${valStr}</div>
+                    `;
+                }
+                box.appendChild(row);
             }
-            md += "\n";
+            
+            return box;
         };
 
         if (chartData.clinical_record) {
             const cr = chartData.clinical_record;
-            addSection('subjective', cr.subjective);
-            addSection('objective', cr.objective);
-            addSection('assessment', cr.assessment);
-            addSection('plan', cr.plan);
+            
+            const boxS = createSoapBox('s', 'S. 주관적 소견 (Subjective)', 'message-square', cr.subjective);
+            const boxO = createSoapBox('o', 'O. 객관적 소견 (Objective)', 'activity', cr.objective);
+            const boxA = createSoapBox('a', 'A. 평가 (Assessment)', 'brain', cr.assessment);
+            const boxP = createSoapBox('p', 'P. 치료 계획 (Plan)', 'calendar', cr.plan);
+
+            if (boxS) soapGrid.appendChild(boxS);
+            if (boxO) soapGrid.appendChild(boxO);
+            if (boxA) soapGrid.appendChild(boxA);
+            if (boxP) soapGrid.appendChild(boxP);
         }
 
-        md += `### 🚨 위험 징후 (Red Flags)\n`;
-        if (chartData.red_flags_detected && chartData.red_flags_detected.length > 0) {
-            chartData.red_flags_detected.forEach(v => {
-                md += `* <span style="color: #ef4444; font-weight: bold;">${v}</span>\n`;
+        container.appendChild(soapGrid);
+
+        const redFlags = chartData.red_flags_detected || [];
+        if (redFlags.length > 0) {
+            const alarmBox = document.createElement('div');
+            alarmBox.className = 'red-flags-alarm-box';
+            
+            const header = document.createElement('div');
+            header.className = 'red-flags-header';
+            header.innerHTML = `<i data-lucide="alert-triangle"></i><span>🚨 위험 징후 감지 (Red Flags)</span>`;
+            alarmBox.appendChild(header);
+
+            const list = document.createElement('ul');
+            list.className = 'red-flags-list';
+            redFlags.forEach(f => {
+                const li = document.createElement('li');
+                li.textContent = f;
+                list.appendChild(li);
             });
-        } else {
-            md += `* 해당 없음\n`;
+            alarmBox.appendChild(list);
+            container.appendChild(alarmBox);
         }
-        md += "\n";
 
         if (chartData.rapport_data) {
-            addSection('rapport_data', chartData.rapport_data);
+            const rapportBox = document.createElement('div');
+            rapportBox.className = 'soap-box soap-rapport';
+            rapportBox.style.marginTop = '1.5rem';
+            
+            const header = document.createElement('div');
+            header.className = 'soap-box-header';
+            header.innerHTML = `
+                <div class="soap-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #34d399;"><i data-lucide="users"></i></div>
+                <div class="soap-box-title" style="color: #34d399;">🤝 라포 데이터 (Rapport & Preferences)</div>
+            `;
+            rapportBox.appendChild(header);
+
+            const rapportLabels = {
+                personal_background: '개인 배경 (가족/직업/취미 등)',
+                patient_preferences: '환자 선호도',
+                psychosocial_factors: '심리사회적 요인',
+                compliance_attitude: '순응도 및 태도',
+                upcoming_events: '향후 일정',
+                follow_up_cues: '다음 방문 시 참고사항'
+            };
+
+            for (const [key, value] of Object.entries(chartData.rapport_data)) {
+                const label = rapportLabels[key] || key;
+                let valStr = "언급 없음";
+                if (value && value !== "언급 없음") {
+                    valStr = value;
+                }
+
+                const row = document.createElement('div');
+                row.className = 'soap-item-row';
+                row.innerHTML = `
+                    <div class="soap-item-label">${label}</div>
+                    <div class="soap-item-value">${valStr}</div>
+                `;
+                rapportBox.appendChild(row);
+            }
+            container.appendChild(rapportBox);
         }
 
-        container.className = 'markdown-body';
-        container.innerHTML = marked.parse(md);
+        lucide.createIcons();
     }
 });

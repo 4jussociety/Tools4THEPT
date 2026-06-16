@@ -34,7 +34,20 @@ def run_async_pipeline(
     audio_path = Path(local_audio_path)
     # Use original file extension directly
     ext = audio_path.suffix.lstrip('.') if audio_path.suffix else "mp3"
-    storage_path = f"{user_id}/{session_id}_processed_audio.{ext}"
+    
+    # 0. 세션 정보 조회하여 patient_id 가져오기
+    patient_id = None
+    try:
+        session_res = supabase.table("sessions").select("patient_id").eq("id", session_id).execute()
+        if session_res.data:
+            patient_id = session_res.data[0].get("patient_id")
+    except Exception as e:
+        print(f"[{session_id}] Warning: Failed to fetch patient_id from sessions ({e})")
+        
+    if patient_id:
+        storage_path = f"{user_id}/{patient_id}/{session_id}_processed_audio.{ext}"
+    else:
+        storage_path = f"{user_id}/{session_id}_processed_audio.{ext}"
     
     try:
         # 1. sessions 상태를 'processing'으로 변경
@@ -171,10 +184,21 @@ def run_local_edge_mimic_pipeline(
     supabase = get_supabase()
     openai_client = OpenAI()
     
+    # 0. 세션 정보 조회하여 patient_id 가져오기
+    patient_id = None
+    try:
+        session_res = supabase.table("sessions").select("patient_id").eq("id", session_id).execute()
+        if session_res.data:
+            patient_id = session_res.data[0].get("patient_id")
+    except Exception as e:
+        print(f"[LocalEdge] Warning: Failed to fetch patient_id from sessions ({e})")
+        
+    storage_folder = f"{user_id}/{patient_id}" if patient_id else user_id
+    
     # Find the processed audio file in storage with dynamic extension
     ext = "wav"
     try:
-        files = supabase.storage.from_("audio-records").list(user_id)
+        files = supabase.storage.from_("audio-records").list(storage_folder)
         prefix = f"{session_id}_processed_audio."
         for f in files:
             name = f.get("name", "")
@@ -185,7 +209,7 @@ def run_local_edge_mimic_pipeline(
     except Exception as list_err:
         print(f"[LocalEdge] Warning: Failed to list storage directory ({list_err}). Falling back to .wav")
 
-    storage_path = f"{user_id}/{session_id}_processed_audio.{ext}"
+    storage_path = f"{storage_folder}/{session_id}_processed_audio.{ext}"
     local_temp_path = OUTPUT_DIR / f"{session_id}_temp.{ext}"
     
     try:
