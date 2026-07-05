@@ -54,9 +54,10 @@ create table public.patients (
   id uuid default gen_random_uuid() primary key,
   therapist_id uuid references auth.users on delete cascade not null,
   name text not null,
-  birth_date date not null,
+  birth_date date,
   gender text check (gender in ('M', 'F', 'Other')) not null,
   chart_number text,
+  memo text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

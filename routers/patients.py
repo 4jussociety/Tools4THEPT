@@ -10,9 +10,10 @@ router = APIRouter(prefix="/api/patients", tags=["patients"])
 
 class PatientCreate(BaseModel):
     name: str
-    birth_date: date
+    birth_date: Optional[date] = None
     gender: str  # 'M', 'F', or 'Other'
     chart_number: Optional[str] = None
+    memo: Optional[str] = None
 
 @router.get("", response_model=List[dict])
 async def get_patients(user_id: str = Depends(get_current_user_id)):
@@ -46,9 +47,10 @@ async def create_patient(
     patient_data = {
         "therapist_id": user_id,
         "name": patient.name,
-        "birth_date": str(patient.birth_date),
+        "birth_date": str(patient.birth_date) if patient.birth_date else "1900-01-01",
         "gender": patient.gender,
-        "chart_number": patient.chart_number
+        "chart_number": patient.chart_number,
+        "memo": patient.memo
     }
     
     try:

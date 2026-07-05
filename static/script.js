@@ -957,6 +957,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    if (openGuideBtn) {
+        openGuideBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            guideModal.classList.remove('hidden');
+        });
+    }
+
+    if (closeGuideBtn) {
+        closeGuideBtn.addEventListener('click', () => {
+            guideModal.classList.add('hidden');
+        });
+    }
+
+    if (guideModal) {
+        guideModal.addEventListener('click', (e) => {
+            if (e.target === guideModal) {
+                guideModal.classList.add('hidden');
+            }
+        });
+    }
+
     if (openRegisterPatientBtn) {
         openRegisterPatientBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1445,11 +1466,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 console.error("Error parsing chart json", e);
                             }
                         }
+                        let patientName = session.patients?.name || "";
+                        let chartNumber = session.patients?.chart_number || "";
+                        if (!patientName && session.patient_id) {
+                            const cachedPatient = allPatientsCached.find(p => p.id === session.patient_id);
+                            if (cachedPatient) {
+                                patientName = cachedPatient.name;
+                                chartNumber = cachedPatient.chart_number || "";
+                            }
+                        }
+
                         responseData.results = {
                             raw_transcript: result.raw_transcript,
                             refined_transcript: result.refined_transcript,
                             chart_data: chartData,
-                            guide_content: result.guide_content
+                            guide_content: result.guide_content,
+                            session_id: sessionId,
+                            patient_name: patientName,
+                            chart_number: chartNumber,
+                            execution_date: session.created_at ? session.created_at.substring(0, 10) : ""
                         };
                         
                         lastResultData = responseData.results;
@@ -1471,6 +1506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (results.chart_data) {
             renderChart(results.chart_data, chartContent);
+            renderManualTherapyForm(results);
         }
         
         if (results.guide_content) {
@@ -1483,6 +1519,87 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         resultsSection.classList.remove('hidden');
         lucide.createIcons();
+    }
+
+    function renderManualTherapyForm(results) {
+        const form = document.getElementById('manual-therapy-form');
+        if (!form) return;
+
+        const chartData = results.chart_data;
+        const mtData = chartData?.manual_therapy_record || {};
+
+        // 1. 환자 정보 및 기본 정보 세팅
+        document.getElementById('mt-pat-name').value = results.patient_name || "";
+        document.getElementById('mt-chart-number').value = results.chart_number || "";
+        
+        // 진단명 기본값 설정
+        const cr = chartData?.clinical_record || {};
+        const diag = cr.assessment?.therapist_diagnosis || cr.assessment?.ai_diagnosis_inferred || "";
+        document.getElementById('mt-diagnosis').value = mtData.diagnosis || diag || "";
+        
+        document.getElementById('mt-execution-date').value = results.execution_date || "";
+
+        // 시행자 성명
+        document.getElementById('mt-therapist-name').value = mtData.therapist_name || "";
+
+        // 2. 누적 횟수 세팅
+        document.getElementById('mt-cumulative-count').value = mtData.cumulative_count !== null ? mtData.cumulative_count : "";
+
+        // 3. 시행기법 체크박스
+        const techniques = mtData.techniques || {};
+        const techList = techniques.selected || [];
+        document.querySelectorAll('input[name="mt-technique"]').forEach(cb => {
+            cb.checked = techList.includes(cb.value);
+        });
+        document.getElementById('mt-technique-details').value = techniques.details || "";
+
+        // 4. 시행부위 체크박스
+        const regions = mtData.treatment_regions || [];
+        document.querySelectorAll('input[name="mt-region"]').forEach(cb => {
+            cb.checked = regions.includes(cb.value);
+        });
+
+        // 5. 치료 전 / 후 평가
+        const evalData = mtData.evaluation || {};
+        const preEval = evalData.pre_treatment || {};
+        const postEval = evalData.post_treatment || {};
+
+        // Pre VAS
+        const preVasInput = document.getElementById('mt-pre-vas');
+        const preVasDisplay = document.getElementById('mt-pre-vas-display');
+        if (preVasInput && preVasDisplay) {
+            const val = preEval.pain_scale !== null ? preEval.pain_scale : 5;
+            preVasInput.value = val;
+            preVasDisplay.textContent = preEval.pain_scale !== null ? val : "5";
+        }
+        document.getElementById('mt-pre-rom').value = preEval.rom_and_function || "";
+        document.getElementById('mt-pre-symptoms').value = preEval.symptoms || "";
+
+        // Post VAS
+        const postVasInput = document.getElementById('mt-post-vas');
+        const postVasDisplay = document.getElementById('mt-post-vas-display');
+        if (postVasInput && postVasDisplay) {
+            const val = postEval.pain_scale !== null ? postEval.pain_scale : 3;
+            postVasInput.value = val;
+            postVasDisplay.textContent = postEval.pain_scale !== null ? val : "3";
+        }
+        document.getElementById('mt-post-rom').value = postEval.rom_and_function_changes || "";
+        document.getElementById('mt-post-reaction').value = postEval.patient_reaction || "";
+
+        // 6. 종합 치료효과 평가
+        const overall = mtData.overall_effect || {};
+        const overallRating = overall.rating || "";
+        document.querySelectorAll('input[name="mt-overall"]').forEach(rb => {
+            rb.checked = (rb.value === overallRating);
+        });
+        document.getElementById('mt-overall-details').value = overall.details || "";
+
+        // 상태 메세지 초기화
+        const statusInfo = document.getElementById('mt-save-status');
+        if (statusInfo) {
+            statusInfo.textContent = "내용을 확인하고 수정한 뒤 저장해 주세요.";
+            statusInfo.style.color = "#6b7280";
+        }
     }
 
     tabBtns.forEach(btn => {
@@ -1745,5 +1862,144 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         lucide.createIcons();
+    }
+
+    // --- 도수치료 기록지 연동 이벤트 (VAS 실시간 표시 및 Supabase 저장) ---
+    const preVasRange = document.getElementById('mt-pre-vas');
+    const preVasDisplay = document.getElementById('mt-pre-vas-display');
+    if (preVasRange && preVasDisplay) {
+        preVasRange.addEventListener('input', (e) => {
+            preVasDisplay.textContent = e.target.value;
+        });
+    }
+
+    const postVasRange = document.getElementById('mt-post-vas');
+    const postVasDisplay = document.getElementById('mt-post-vas-display');
+    if (postVasRange && postVasDisplay) {
+        postVasRange.addEventListener('input', (e) => {
+            postVasDisplay.textContent = e.target.value;
+        });
+    }
+
+    const saveMTBtn = document.getElementById('save-manual-therapy-btn');
+    if (saveMTBtn) {
+        saveMTBtn.addEventListener('click', async () => {
+            if (!lastResultData || !lastResultData.session_id) {
+                alert("저장할 세션 정보가 존재하지 않습니다.");
+                return;
+            }
+
+            const sessionId = lastResultData.session_id;
+            saveMTBtn.disabled = true;
+            const originalText = saveMTBtn.innerHTML;
+            saveMTBtn.textContent = "저장 중...";
+
+            const statusInfo = document.getElementById('mt-save-status');
+            if (statusInfo) {
+                statusInfo.textContent = "Supabase에 기록을 저장하는 중...";
+                statusInfo.style.color = "var(--primary)";
+            }
+
+            try {
+                // 현재 입력된 폼 값들을 수집하여 manual_therapy_record 구조를 만든다.
+                const techniquesSelected = [];
+                document.querySelectorAll('input[name="mt-technique"]:checked').forEach(cb => {
+                    techniquesSelected.push(cb.value);
+                });
+
+                const regionsSelected = [];
+                document.querySelectorAll('input[name="mt-region"]:checked').forEach(cb => {
+                    regionsSelected.push(cb.value);
+                });
+
+                const cumulativeVal = document.getElementById('mt-cumulative-count').value;
+
+                const preVasVal = document.getElementById('mt-pre-vas').value;
+                const postVasVal = document.getElementById('mt-post-vas').value;
+
+                let overallRating = null;
+                document.querySelectorAll('input[name="mt-overall"]:checked').forEach(rb => {
+                    overallRating = rb.value;
+                });
+
+                const manualTherapyRecord = {
+                    therapist_name: document.getElementById('mt-therapist-name').value.trim(),
+                    diagnosis: document.getElementById('mt-diagnosis').value.trim(),
+                    techniques: {
+                        selected: techniquesSelected,
+                        details: document.getElementById('mt-technique-details').value.trim()
+                    },
+                    treatment_regions: regionsSelected,
+                    cumulative_count: cumulativeVal !== "" ? parseInt(cumulativeVal) : null,
+                    evaluation: {
+                        pre_treatment: {
+                            pain_scale: preVasVal !== "" ? parseInt(preVasVal) : null,
+                            rom_and_function: document.getElementById('mt-pre-rom').value.trim(),
+                            symptoms: document.getElementById('mt-pre-symptoms').value.trim()
+                        },
+                        post_treatment: {
+                            pain_scale: postVasVal !== "" ? parseInt(postVasVal) : null,
+                            rom_and_function_changes: document.getElementById('mt-post-rom').value.trim(),
+                            patient_reaction: document.getElementById('mt-post-reaction').value.trim()
+                        }
+                    },
+                    overall_effect: {
+                        rating: overallRating,
+                        details: document.getElementById('mt-overall-details').value.trim()
+                    }
+                };
+
+                // 기존 results 레코드의 chart_data를 가져와서 manual_therapy_record 항목을 업데이트/추가한다.
+                const { data: existingResult, error: selectErr } = await supabase
+                    .from('results')
+                    .select('chart_data')
+                    .eq('session_id', sessionId)
+                    .single();
+
+                if (selectErr) throw selectErr;
+
+                let updatedChartData = {};
+                if (existingResult && existingResult.chart_data) {
+                    updatedChartData = existingResult.chart_data;
+                    if (typeof updatedChartData === 'string') {
+                        updatedChartData = JSON.parse(updatedChartData);
+                    }
+                }
+
+                updatedChartData.manual_therapy_record = manualTherapyRecord;
+
+                // Supabase 업데이트
+                const { error: updateErr } = await supabase
+                    .from('results')
+                    .update({ chart_data: updatedChartData })
+                    .eq('session_id', sessionId);
+
+                if (updateErr) throw updateErr;
+
+                // 성공 상태 UI 처리
+                if (statusInfo) {
+                    statusInfo.textContent = "도수치료 시행기록지가 정상적으로 저장되었습니다.";
+                    statusInfo.style.color = "#10b981";
+                }
+                
+                // 로컬 데이터 캐시 업데이트
+                if (lastResultData) {
+                    lastResultData.chart_data = updatedChartData;
+                }
+
+                alert("성공적으로 저장되었습니다.");
+
+            } catch (err) {
+                console.error("Failed to save manual therapy record:", err);
+                if (statusInfo) {
+                    statusInfo.textContent = "저장 실패: " + err.message;
+                    statusInfo.style.color = "#ef4444";
+                }
+                alert("저장 오류: " + err.message);
+            } finally {
+                saveMTBtn.disabled = false;
+                saveMTBtn.innerHTML = originalText;
+            }
+        });
     }
 });
