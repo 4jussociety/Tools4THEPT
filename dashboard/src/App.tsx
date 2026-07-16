@@ -301,7 +301,7 @@ function App() {
               <div className="grid grid-cols-2 gap-3 max-w-[480px] mx-auto w-full">
                 {beds.filter(b => myBeds.includes(b.id)).map(bed => (
                   <div key={bed.id} className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden aspect-[11/16]">
-                    <BedCard bed={bed} onUpdate={handleUpdateBed} onOpenModal={() => setSelectedBedId(bed.id)} onAddTreatmentClick={() => setAddTreatmentBedId(bed.id)} isEditMode={false} isViewerMode={userMode === 'viewer'} forceVertical={true} isMobile={isMobile} onTransferClick={() => setTransferSourceBedId(bed.id)} />
+                    <BedCard bed={bed} onUpdate={handleUpdateBed} onOpenModal={() => setSelectedBedId(bed.id)} onAddTreatmentClick={() => setAddTreatmentBedId(bed.id)} isEditMode={false} isViewerMode={false} forceVertical={true} isMobile={isMobile} onTransferClick={() => setTransferSourceBedId(bed.id)} />
                   </div>
                 ))}
               </div>
