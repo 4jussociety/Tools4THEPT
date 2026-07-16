@@ -6,12 +6,12 @@ import RequireOwner from './features/auth/RequireOwner'
 import CalendarPage from './features/calendar/CalendarPage'
 import ClientList from './features/clients/ClientList'
 import StatisticsPage from './features/statistics/StatisticsPage'
-import MemberManagement from './features/systems/MemberManagement'
+import MemberManagement from './features/admin/MemberManagementPage'
 import ProfilePage from './features/profile/ProfilePage'
-import ManagerPage from './features/manager/ManagerPage'
-import SuperAdminPage from './features/super-admin/SuperAdminPage'
+import CenterSettingsPage from './features/admin/CenterSettingsPage'
+import SuperAdminPage from './features/admin/SuperAdminPage'
 import ChartingPage from './features/charting/ChartingPage'
-import PortalPage from './features/portal/PortalPage'
+import PortalPage from './features/auth/PortalPage'
 
 import RootLayout from './components/layout/RootLayout'
 
@@ -39,7 +39,7 @@ function App() {
                 <Route element={<RequireOwner />}>
                   <Route path="/statistics" element={<StatisticsPage />} />
                   <Route path="/members" element={<MemberManagement />} />
-                  <Route path="/settings" element={<ManagerPage />} />
+                  <Route path="/settings" element={<CenterSettingsPage />} />
                 </Route>
               </Route>
             </Route>

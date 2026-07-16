@@ -1,0 +1,34 @@
+{
+  "clinical_record": {
+    "subjective": {
+      "chief_complaint": "언급 없음",
+      "pain_scale": "언급 없음",
+      "aggravating_easing_factors": "언급 없음",
+      "precautions_contraindications": "언급 없음"
+    },
+    "objective": {
+      "observation_posture": "언급 없음",
+      "physical_examination": "언급 없음"
+    },
+    "assessment": {
+      "therapist_diagnosis": "언급 없음",
+      "ai_diagnosis_inferred": "언급 없음",
+      "clinical_impression": "언급 없음",
+      "progress": "언급 없음"
+    },
+    "plan": {
+      "treatment_performed": "언급 없음",
+      "home_exercise": "언급 없음",
+      "future_plan": "언급 없음"
+    }
+  },
+  "red_flags_detected": [],
+  "rapport_data": {
+    "personal_background": "환자와 치료사 간의 대화에서 가족, 직업, 취미에 대한 구체적인 정보는 언급되지 않음.",
+    "patient_preferences": "언급 없음",
+    "psychosocial_factors": "언급 없음",
+    "compliance_attitude": "언급 없음",
+    "upcoming_events": [],
+    "follow_up_cues": []
+  }
+}

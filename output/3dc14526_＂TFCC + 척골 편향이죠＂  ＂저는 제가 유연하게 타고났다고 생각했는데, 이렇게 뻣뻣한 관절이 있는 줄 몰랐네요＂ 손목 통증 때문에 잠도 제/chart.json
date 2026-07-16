@@ -1,0 +1,36 @@
+{
+  "clinical_record": {
+    "subjective": {
+      "chief_complaint": "왼쪽 어깨와 손목의 통증, 특히 운동 후 통증이 심해짐.",
+      "pain_scale": "언급 없음",
+      "aggravating_easing_factors": "운동 후 통증 악화, 스트레칭 후 통증 완화.",
+      "precautions_contraindications": "과거에 수술 경험이 있으며, 통증이 지속됨."
+    },
+    "objective": {
+      "observation_posture": "왼쪽 어깨의 유연성 저하, 오른쪽 어깨에 비해 뻣뻣함.",
+      "physical_examination": "어깨의 ROM 제한, 왼쪽 어깨의 긴장성 통증, 근막 뭉침."
+    },
+    "assessment": {
+      "therapist_diagnosis": "왼쪽 어깨의 유연성 저하와 근막 긴장으로 인한 통증.",
+      "ai_diagnosis_inferred": "왼쪽 어깨의 근막 긴장 및 유연성 저하로 인한 통증, TFCC 문제 가능성.",
+      "clinical_impression": "어깨와 손목의 통증은 근막 긴장과 유연성 저하로 인한 것으로 보이며, 스트레칭과 자가 운동이 필요함.",
+      "progress": "어깨의 긴장이 감소하고 유연성이 개선됨."
+    },
+    "plan": {
+      "treatment_performed": "스트레칭 및 자가 운동 방법 교육.",
+      "home_exercise": "어깨 스트레칭 및 손목 운동 방법 안내.",
+      "future_plan": "지속적인 스트레칭과 운동을 통한 유연성 개선 및 통증 관리."
+    }
+  },
+  "red_flags_detected": [],
+  "rapport_data": {
+    "personal_background": "환자는 3~4년 전부터 통증을 경험하고 있으며, 최근 가족과의 이사로 인해 스트레스를 받음.",
+    "patient_preferences": "스트레칭과 자가 운동을 선호하며, 치료에 대한 긍정적인 태도를 보임.",
+    "psychosocial_factors": "스트레스와 통증으로 인해 심리적 불편함을 느끼고 있음.",
+    "compliance_attitude": "치료에 대한 높은 순응도를 보이며, 적극적으로 참여함.",
+    "upcoming_events": [],
+    "follow_up_cues": [
+      "환자의 통증 관리 및 운동 진행 상황에 대한 질문"
+    ]
+  }
+}

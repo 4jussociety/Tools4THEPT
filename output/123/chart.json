@@ -1,0 +1,36 @@
+{
+  "clinical_record": {
+    "subjective": {
+      "chief_complaint": "오른쪽 손목 통증, 어깨 불편",
+      "pain_scale": "언급 없음",
+      "aggravating_easing_factors": "운동 후 통증 악화, 스트레칭 후 통증 완화",
+      "precautions_contraindications": "과거력으로는 TFCC 문제 언급, 3~4년간 통증 지속"
+    },
+    "objective": {
+      "observation_posture": "오른쪽 손목과 어깨의 유연성 저하, 왼쪽과의 비대칭",
+      "physical_examination": "어깨의 가동 범위가 5~6cm 증가, 오른쪽 손목의 긴장성 통증 확인"
+    },
+    "assessment": {
+      "therapist_diagnosis": "오른쪽 손목과 어깨의 근막 긴장 및 유연성 저하",
+      "ai_diagnosis_inferred": "오른쪽 손목과 어깨의 근막 긴장 및 비대칭으로 인한 통증",
+      "clinical_impression": "근막 긴장으로 인한 통증이 있으며, 스트레칭을 통해 개선 가능성이 있음",
+      "progress": "스트레칭 후 통증 완화 및 가동 범위 증가"
+    },
+    "plan": {
+      "treatment_performed": "스트레칭 및 근막 이완 기법 적용",
+      "home_exercise": "어깨 스트레칭 및 손목 운동 지도",
+      "future_plan": "지속적인 스트레칭 및 보조 운동 추가 계획"
+    }
+  },
+  "red_flags_detected": [],
+  "rapport_data": {
+    "personal_background": "환자는 3~4년간 통증을 경험하며, 운동을 즐기는 것으로 보임",
+    "patient_preferences": "스트레칭과 운동에 대한 관심이 높음",
+    "psychosocial_factors": "통증으로 인해 스트레스를 많이 받음",
+    "compliance_attitude": "치료에 대한 긍정적인 태도, 적극적으로 참여",
+    "upcoming_events": [],
+    "follow_up_cues": [
+      "환자의 운동 경험 및 통증 변화에 대한 이야기"
+    ]
+  }
+}
