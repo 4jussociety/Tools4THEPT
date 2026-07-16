@@ -12,7 +12,14 @@ export async function fetchBeds(ownerId: string) {
     .from('beds')
     .select('*')
     .eq('owner_id', ownerId);
-  return { data: data as BedData[] | null, error };
+
+  const mappedData = data ? data.map((bed: any) => ({
+    ...bed,
+    client_name: bed.patient_name || '',
+    client_memo: bed.client_memo || bed.patient_memo || '',
+  })) : null;
+
+  return { data: mappedData as BedData[] | null, error };
 }
 
 /** 다수의 베드 정보를 한 번에 bulk upsert(생성 또는 업데이트)합니다. */
@@ -24,9 +31,10 @@ export async function upsertBeds(bedsList: BedData[], ownerId: string) {
     bed_number: bed.bed_number,
     bed_type: bed.bed_type || 'GENERAL',
     status: bed.status,
-    client_name: bed.client_name || null,
+    patient_name: bed.client_name || null,
     body_part: bed.body_part || null,
     client_memo: bed.client_memo || null,
+    patient_memo: bed.client_memo || null,
     current_history_id: bed.current_history_id || null,
     treatments: bed.treatments || [],
     x_pos: Math.round(bed.x_pos),
