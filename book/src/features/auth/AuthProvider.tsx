@@ -80,6 +80,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return
         }
 
+        // 1. Cross-origin token synchronization via URL hash (#access_token=...)
+        const hash = window.location.hash;
+        if (hash && hash.includes('access_token=')) {
+            const params = new URLSearchParams(hash.substring(1));
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            if (accessToken && refreshToken) {
+                supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken,
+                }).then(({ data, error }) => {
+                    if (!error && data.session) {
+                        setSession(data.session);
+                        setUser(data.session.user);
+                        setOwnerId(data.session.user.id);
+                        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+                        fetchProfile(data.session.user.id, data.session.user.email).finally(() => setLoading(false));
+                    }
+                });
+            }
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session)
             setUser(session?.user ?? null)
