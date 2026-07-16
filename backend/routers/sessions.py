@@ -18,7 +18,7 @@ async def analyze_audio(
     file: UploadFile = File(...),
     profession: str = Form("pt"),
     memo: str = Form(None),
-    patient_id: str = Form(None),
+    client_id: str = Form(None),
     user_id: str = Depends(get_current_user_id)
 ):
     """
@@ -78,9 +78,9 @@ async def analyze_audio(
     # 3. Supabase sessions 테이블에 'pending' 상태로 세션 삽입
     session_data = {
         "user_id": user_id,
-        "patient_id": patient_id,
+        "client_id": client_id,
         "profession": profession,
-        "patient_name": file.filename,
+        "client_name": file.filename,
         "status": "pending",
         "memo": memo
     }
@@ -120,7 +120,7 @@ async def get_sessions(user_id: str = Depends(get_current_user_id)):
     supabase = get_supabase()
     try:
         res = supabase.table("sessions")\
-            .select("id", "patient_name", "status", "profession", "created_at", "patient_id")\
+            .select("id", "client_name", "status", "profession", "created_at", "client_id")\
             .eq("user_id", user_id)\
             .order("created_at", desc=True)\
             .execute()
@@ -147,7 +147,7 @@ async def get_session_detail(session_id: str, user_id: str = Depends(get_current
 
         response_data = {
             "id": session["id"],
-            "patient_name": session["patient_name"],
+            "client_name": session.get("client_name") or session.get("patient_name") or "",
             "status": session["status"],
             "profession": session["profession"],
             "audio_url": session["audio_url"],

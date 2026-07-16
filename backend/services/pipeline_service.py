@@ -35,17 +35,17 @@ def run_async_pipeline(
     # Use original file extension directly
     ext = audio_path.suffix.lstrip('.') if audio_path.suffix else "mp3"
     
-    # 0. 세션 정보 조회하여 patient_id 가져오기
-    patient_id = None
+    # 0. 세션 정보 조회하여 client_id 가져오기
+    client_id = None
     try:
-        session_res = supabase.table("sessions").select("patient_id").eq("id", session_id).execute()
+        session_res = supabase.table("sessions").select("client_id", "patient_id").eq("id", session_id).execute()
         if session_res.data:
-            patient_id = session_res.data[0].get("patient_id")
+            client_id = session_res.data[0].get("client_id") or session_res.data[0].get("patient_id")
     except Exception as e:
-        print(f"[{session_id}] Warning: Failed to fetch patient_id from sessions ({e})")
+        print(f"[{session_id}] Warning: Failed to fetch client_id from sessions ({e})")
         
-    if patient_id:
-        storage_path = f"{user_id}/{patient_id}/{session_id}_processed_audio.{ext}"
+    if client_id:
+        storage_path = f"{user_id}/{client_id}/{session_id}_processed_audio.{ext}"
     else:
         storage_path = f"{user_id}/{session_id}_processed_audio.{ext}"
     
@@ -184,16 +184,16 @@ def run_local_edge_mimic_pipeline(
     supabase = get_supabase()
     openai_client = OpenAI()
     
-    # 0. 세션 정보 조회하여 patient_id 가져오기
-    patient_id = None
+    # 0. 세션 정보 조회하여 client_id 가져오기
+    client_id = None
     try:
-        session_res = supabase.table("sessions").select("patient_id").eq("id", session_id).execute()
+        session_res = supabase.table("sessions").select("client_id", "patient_id").eq("id", session_id).execute()
         if session_res.data:
-            patient_id = session_res.data[0].get("patient_id")
+            client_id = session_res.data[0].get("client_id") or session_res.data[0].get("patient_id")
     except Exception as e:
-        print(f"[LocalEdge] Warning: Failed to fetch patient_id from sessions ({e})")
+        print(f"[LocalEdge] Warning: Failed to fetch client_id from sessions ({e})")
         
-    storage_folder = f"{user_id}/{patient_id}" if patient_id else user_id
+    storage_folder = f"{user_id}/{client_id}" if client_id else user_id
     
     # Find the processed audio file in storage with dynamic extension
     ext = "wav"
