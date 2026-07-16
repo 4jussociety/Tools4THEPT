@@ -71,9 +71,9 @@ export async function createTreatmentHistory(params: {
   const { data, error } = await supabase
     .from('treatment_history')
     .insert({
-      patient_name: params.clientName,
+      client_name: params.clientName,
       body_part: params.bodyPart || null,
-      patient_memo: params.clientMemo || null,
+      client_memo: params.clientMemo || null,
       visit_time: new Date().toISOString(),
       incomplete_treatments: params.treatments,
       completed_treatments: [],
@@ -82,14 +82,7 @@ export async function createTreatmentHistory(params: {
     })
     .select()
     .single();
-
-  const mappedData = data ? {
-    ...data,
-    client_name: (data as any).patient_name,
-    client_memo: (data as any).patient_memo,
-  } : null;
-
-  return { data: mappedData as TreatmentHistory | null, error };
+  return { data: data as TreatmentHistory | null, error };
 }
 
 /** 치료 이력을 업데이트합니다 (치료 진행 중 또는 퇴실 시). */
@@ -105,19 +98,9 @@ export async function updateTreatmentHistory(
     status: string;
   }>
 ) {
-  const payload: any = { ...updates };
-  if (updates.client_name !== undefined) {
-    payload.patient_name = updates.client_name;
-    delete payload.client_name;
-  }
-  if (updates.client_memo !== undefined) {
-    payload.patient_memo = updates.client_memo;
-    delete payload.client_memo;
-  }
-
   const { error } = await supabase
     .from('treatment_history')
-    .update(payload)
+    .update(updates)
     .eq('id', historyId);
   return { error };
 }
@@ -140,12 +123,5 @@ export async function fetchRecentClients(ownerId: string, limit = 3000) {
     .eq('owner_id', ownerId)
     .order('visit_time', { ascending: false })
     .limit(limit);
-
-  const mappedData = data ? data.map((h: any) => ({
-    ...h,
-    client_name: h.patient_name || '',
-    client_memo: h.client_memo || h.patient_memo || '',
-  })) : null;
-
-  return { data: mappedData as TreatmentHistory[] | null, error };
+  return { data: data as TreatmentHistory[] | null, error };
 }
