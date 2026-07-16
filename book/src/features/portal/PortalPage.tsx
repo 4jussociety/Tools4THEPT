@@ -15,11 +15,13 @@ export function PortalPage() {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
     const handleNavigateDashboard = () => {
+        const isLocal = window.location.hostname === 'localhost';
+        const dashboardBase = isLocal ? 'http://localhost:5173' : `${window.location.origin}/app`;
         if (session?.access_token && session?.refresh_token) {
-            const dashboardUrl = `http://localhost:5174/dashboard/#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+            const dashboardUrl = `${dashboardBase}#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
             window.location.href = dashboardUrl
         } else {
-            window.location.href = 'http://localhost:5174/dashboard/'
+            window.location.href = dashboardBase
         }
     }
 

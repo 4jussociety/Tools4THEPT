@@ -260,10 +260,12 @@ export function Portal({ initialView }: PortalProps) {
               {/* 서비스 2: 스케줄 및 AI 임상 차팅 */}
               <button
                 onClick={() => {
+                  const isLocal = window.location.hostname === 'localhost';
+                  const calendarBase = isLocal ? 'http://localhost:5174/calendar' : `${window.location.origin}/calendar`;
                   if (session?.access_token && session?.refresh_token) {
-                    window.location.href = `http://localhost:5173/calendar#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+                    window.location.href = `${calendarBase}#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
                   } else {
-                    window.location.href = 'http://localhost:5173/calendar';
+                    window.location.href = calendarBase;
                   }
                 }}
                 className="flex flex-col text-left p-6 bg-white hover:bg-indigo-50/40 border-2 border-slate-200 hover:border-indigo-500 rounded-2xl transition-all duration-300 group hover:-translate-y-1 shadow-md hover:shadow-indigo-500/10 cursor-pointer"
