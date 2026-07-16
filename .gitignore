@@ -1,28 +1,17 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-ENV/
-env/
-
-# Project Specific
+# Node / Frontend
+node_modules/
+dist/
 .env
-output/
-*.log
-*.wav
-*.mp3
-*.m4a
+*.local
 
-# IDE
+# Python / Backend
+backend/.venv/
+backend/output/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# IDE & OS
 .vscode/
-.idea/
-
-# Binaries
-*.exe
-
-# Debugging / Temp scripts
-list_buckets.py
-test_storage_upload.py
-test_supabase_sdk_upload.py
+.DS_Store
+Thumbs.db
