@@ -153,11 +153,11 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                     } else {
                         const [h, m] = initialData.start_time.split(':').map(Number)
                         const snappedM = Math.round(m / 10) * 10
-                        setValue('start_time', `${h.toString().padStart(2, '0')}:${snappedM.toString().padStart(2, '0')} `)
+                        setValue('start_time', `${h.toString().padStart(2, '0')}:${snappedM.toString().padStart(2, '0')}`)
 
                         const endM = snappedM
                         const endH = (h + 1).toString().padStart(2, '0')
-                        setValue('end_time', `${endH}:${endM.toString().padStart(2, '0')} `)
+                        setValue('end_time', `${endH}:${endM.toString().padStart(2, '0')}`)
                     }
                 }
             }
@@ -634,10 +634,10 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                             <span className="block text-[9px] text-gray-400 font-bold mb-0.5 ml-1">시작</span>
                                             <div className="flex gap-1">
                                                 <select
-                                                    value={watch('start_time')?.split(':')[0] || '09'}
+                                                    value={watch('start_time')?.split(':')[0]?.trim() || '09'}
                                                     onChange={(e) => {
                                                         const h = e.target.value
-                                                        const m = watch('start_time')?.split(':')[1] || '00'
+                                                        const m = watch('start_time')?.split(':')[1]?.trim() || '00'
                                                         setValue('start_time', `${h}:${m}`)
                                                     }}
                                                     className="w-full px-1 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold cursor-pointer transition-all text-xs h-[42px] text-center appearance-none"
@@ -647,9 +647,9 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                                     ))}
                                                 </select>
                                                 <select
-                                                    value={watch('start_time')?.split(':')[1] || '00'}
+                                                    value={watch('start_time')?.split(':')[1]?.trim() || '00'}
                                                     onChange={(e) => {
-                                                        const h = watch('start_time')?.split(':')[0] || '09'
+                                                        const h = watch('start_time')?.split(':')[0]?.trim() || '09'
                                                         const m = e.target.value
                                                         setValue('start_time', `${h}:${m}`)
                                                     }}
@@ -665,10 +665,10 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                             <span className={`block text-[9px] font-bold mb-0.5 ml-1 ${isTimeInvalid ? 'text-red-500' : 'text-gray-400'}`}>종료 {isTimeInvalid && '⚠️'}</span>
                                             <div className="flex gap-1">
                                                 <select
-                                                    value={watch('end_time')?.split(':')[0] || '10'}
+                                                    value={watch('end_time')?.split(':')[0]?.trim() || '10'}
                                                     onChange={(e) => {
                                                         const h = e.target.value
-                                                        const m = watch('end_time')?.split(':')[1] || '00'
+                                                        const m = watch('end_time')?.split(':')[1]?.trim() || '00'
                                                         setValue('end_time', `${h}:${m}`)
                                                     }}
                                                     className={`w-full px-1 py-2.5 rounded-xl outline-none font-bold cursor-pointer transition-all text-xs h-[42px] text-center appearance-none ${isTimeInvalid
@@ -681,9 +681,9 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                                     ))}
                                                 </select>
                                                 <select
-                                                    value={watch('end_time')?.split(':')[1] || '00'}
+                                                    value={watch('end_time')?.split(':')[1]?.trim() || '00'}
                                                     onChange={(e) => {
-                                                        const h = watch('end_time')?.split(':')[0] || '10'
+                                                        const h = watch('end_time')?.split(':')[0]?.trim() || '10'
                                                         const m = e.target.value
                                                         setValue('end_time', `${h}:${m}`)
                                                     }}
