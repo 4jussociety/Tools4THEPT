@@ -21,7 +21,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter basename="/book">
           <Routes>
             {/* 통합 로그인 & 서비스 선택 메인 포털 */}
             <Route path="/portal" element={<PortalPage />} />
