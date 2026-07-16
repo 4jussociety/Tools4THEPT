@@ -177,17 +177,54 @@ export async function getClients() {
 
 export async function getProfiles(systemId?: string) {
     try {
-        let query = supabase.from('profiles').select('*')
-        if (systemId) {
-            query = query.eq('system_id', systemId)
+        if (!systemId) {
+            const { data } = await supabase.from('profiles').select('*').order('full_name', { ascending: true })
+            return (data || []) as Profile[]
         }
-        const { data, error } = await query
-        if (error) {
-            const { data: fallbackData } = await supabase.from('profiles').select('id, email, full_name, role')
-            return (fallbackData || []) as Profile[]
+
+        // 1. system_id 또는 id(소유자 ID)가 일치하는 치료사 프로필 조회
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .or(`system_id.eq.${systemId},id.eq.${systemId}`)
+            .order('full_name', { ascending: true })
+
+        if (!error && data && data.length > 0) {
+            return data as Profile[]
         }
-        return (data || []) as Profile[]
-    } catch {
+
+        // 2. systems 테이블의 owner_id로 등록된 시스템 ID 조회 후 소속 프로필 검색
+        const { data: systemData } = await supabase
+            .from('systems')
+            .select('id')
+            .eq('owner_id', systemId)
+            .maybeSingle()
+
+        if (systemData?.id) {
+            const { data: systemProfiles } = await supabase
+                .from('profiles')
+                .select('*')
+                .or(`system_id.eq.${systemData.id},id.eq.${systemId}`)
+                .order('full_name', { ascending: true })
+
+            if (systemProfiles && systemProfiles.length > 0) {
+                return systemProfiles as Profile[]
+            }
+        }
+
+        // 3. 소유자 프로필 직접 조회 Fallback
+        const { data: ownerProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', systemId)
+
+        if (ownerProfile && ownerProfile.length > 0) {
+            return ownerProfile as Profile[]
+        }
+
+        return []
+    } catch (err) {
+        console.error('[getProfiles] Error:', err)
         return []
     }
 }

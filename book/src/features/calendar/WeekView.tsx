@@ -1031,7 +1031,10 @@ export default function WeekView() {
                                     <div className="flex items-center gap-3 text-sm">
                                         <span className="text-gray-400 w-16 text-right font-bold">수업</span>
                                         <span className="font-bold text-blue-700">
-                                            {(profile?.[`${selectedAppointment.session_type}_name` as keyof typeof profile] as string) || '수업'}
+                                            {(() => {
+                                                const targetProfile = rawProfiles?.find((p: any) => p.id === ownerId || p.is_owner) || profile
+                                                return (targetProfile?.[`${selectedAppointment.session_type}_name` as keyof typeof targetProfile] as string) || '수업'
+                                            })()}
                                         </span>
                                     </div>
                                 )}
