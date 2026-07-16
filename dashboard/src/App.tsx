@@ -59,6 +59,12 @@ function App() {
   });
   const [isAssigningMyBeds, setIsAssigningMyBeds] = useState(false);
 
+  const handleToggleMyBed = (bedId: string) => {
+    setMyBeds(prev =>
+      prev.includes(bedId) ? prev.filter(id => id !== bedId) : [...prev, bedId]
+    );
+  };
+
   // LocalStorage 자동 보존
   useEffect(() => { localStorage.setItem('my_assigned_beds', JSON.stringify(myBeds)); }, [myBeds]);
   useEffect(() => { localStorage.setItem('is_filter_my_beds', String(isFilterMyBeds)); }, [isFilterMyBeds]);
@@ -301,7 +307,7 @@ function App() {
               <div className="grid grid-cols-2 gap-3 max-w-[480px] mx-auto w-full">
                 {beds.filter(b => myBeds.includes(b.id)).map(bed => (
                   <div key={bed.id} className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden aspect-[11/16]">
-                    <BedCard bed={bed} onUpdate={handleUpdateBed} onOpenModal={() => setSelectedBedId(bed.id)} onAddTreatmentClick={() => setAddTreatmentBedId(bed.id)} isEditMode={false} isViewerMode={false} forceVertical={true} isMobile={isMobile} onTransferClick={() => setTransferSourceBedId(bed.id)} />
+                    <BedCard bed={bed} onUpdate={handleUpdateBed} onOpenModal={() => setSelectedBedId(bed.id)} onAddTreatmentClick={() => setAddTreatmentBedId(bed.id)} isEditMode={false} isViewerMode={false} forceVertical={true} isMobile={isMobile} onTransferClick={() => setTransferSourceBedId(bed.id)} isMyBed={myBeds.includes(bed.id)} onToggleMyBed={() => handleToggleMyBed(bed.id)} />
                   </div>
                 ))}
               </div>
@@ -405,7 +411,7 @@ function App() {
                         {/* 베드 일반 모드 */}
                         {beds.map(bed => (
                           <div key={bed.id} style={{ position: 'absolute', left: bed.x_pos, top: bed.y_pos, width: bed.width, height: bed.height }}>
-                            <BedCard bed={bed} onUpdate={handleUpdateBed} onOpenModal={() => setSelectedBedId(bed.id)} onAddTreatmentClick={() => setAddTreatmentBedId(bed.id)} isEditMode={false} isViewerMode={userMode === 'viewer'} isMobile={isMobile} onTransferClick={() => setTransferSourceBedId(bed.id)} />
+                            <BedCard bed={bed} onUpdate={handleUpdateBed} onOpenModal={() => setSelectedBedId(bed.id)} onAddTreatmentClick={() => setAddTreatmentBedId(bed.id)} isEditMode={false} isViewerMode={userMode === 'viewer'} isMobile={isMobile} onTransferClick={() => setTransferSourceBedId(bed.id)} isMyBed={myBeds.includes(bed.id)} onToggleMyBed={() => handleToggleMyBed(bed.id)} />
                           </div>
                         ))}
                       </div>
@@ -417,7 +423,7 @@ function App() {
               <DragOverlay dropAnimation={null}>
                 {transfer.activeDragBed ? (
                   <div style={{ width: transfer.activeDragBed.width, height: transfer.activeDragBed.height, transform: `scale(${layout.zoom})`, transformOrigin: '0 0' }}>
-                    <BedCard bed={transfer.activeDragBed} onUpdate={() => {}} onOpenModal={() => {}} isEditMode={false} isDragOverlay={true} isViewerMode={userMode === 'viewer'} isMobile={isMobile} />
+                    <BedCard bed={transfer.activeDragBed} onUpdate={() => {}} onOpenModal={() => {}} isEditMode={false} isDragOverlay={true} isViewerMode={userMode === 'viewer'} isMobile={isMobile} isMyBed={myBeds.includes(transfer.activeDragBed.id)} />
                   </div>
                 ) : null}
               </DragOverlay>

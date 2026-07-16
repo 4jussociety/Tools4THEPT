@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import type { BedData, TreatmentItem } from '../types';
-import { CheckCircle2, Plus } from 'lucide-react';
+import { CheckCircle2, Plus, Star } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import clsx from 'clsx';
 
@@ -18,9 +18,11 @@ interface BedCardProps {
   forceVertical?: boolean;
   isMobile?: boolean;
   onTransferClick?: () => void;
+  isMyBed?: boolean;
+  onToggleMyBed?: (e: React.MouseEvent) => void;
 }
 
-export function BedCard({ bed, onUpdate, onOpenModal, onAddTreatmentClick, isEditMode, isDragOverlay, isViewerMode, forceVertical, isMobile, onTransferClick }: BedCardProps) {
+export function BedCard({ bed, onUpdate, onOpenModal, onAddTreatmentClick, isEditMode, isDragOverlay, isViewerMode, forceVertical, isMobile, onTransferClick, isMyBed, onToggleMyBed }: BedCardProps) {
   const [now, setNow] = useState(new Date());
 
   // 드래그: 고객이 있는 베드만 드래그 가능 (일반 모드에서만)
@@ -154,11 +156,28 @@ export function BedCard({ bed, onUpdate, onOpenModal, onAddTreatmentClick, isEdi
 
       {bed.status === 'EMPTY' ? (
         <div className={clsx(
-          "flex-1 flex flex-col items-center justify-center gap-2 w-full h-full",
+          "relative flex-1 flex flex-col items-center justify-center gap-2 w-full h-full",
           isOver
             ? bed.bed_type === 'SPECIAL' ? "text-purple-600" : "text-blue-600"
             : bed.bed_type === 'SPECIAL' ? "text-purple-500" : "text-slate-400"
         )}>
+          {/* 빈 베드 상태일 때의 담당 베드 토글 별표 버튼 */}
+          {!isViewerMode && !isEditMode && !isDragOverlay && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleMyBed) onToggleMyBed(e);
+              }}
+              className={clsx(
+                "absolute top-2 right-2 p-1 rounded-xl transition-all hover:bg-slate-100 active:scale-90 z-20 border border-slate-200/50 bg-white/80 backdrop-blur-sm cursor-pointer shadow-sm",
+                isMyBed ? "text-amber-500" : "text-slate-300 hover:text-slate-500"
+              )}
+              title={isMyBed ? "내 담당 베드 해제" : "내 담당 베드로 지정"}
+            >
+              <Star size={15} fill={isMyBed ? "currentColor" : "none"} />
+            </button>
+          )}
+
           <div className={clsx(
             "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors",
             isOver
@@ -214,15 +233,33 @@ export function BedCard({ bed, onUpdate, onOpenModal, onAddTreatmentClick, isEdi
                 )}
               </div>
 
-              {/* Vertical Case: Checkout Button on Row 1 (Right) */}
-              {isVertical && !isViewerMode && (
-                <button
-                  onClick={handleClearBed}
-                  className="bg-white hover:bg-red-50 hover:text-red-600 border border-slate-200 text-slate-500 font-black rounded-md transition-colors shadow-sm shrink-0 px-2 md:px-2.5 py-0.5 md:py-1 text-xs"
-                >
-                  퇴실
-                </button>
-              )}
+              {/* Action Buttons (My Bed Toggle Star & Checkout Button) */}
+              <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                {!isViewerMode && !isEditMode && !isDragOverlay && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleMyBed) onToggleMyBed(e);
+                    }}
+                    className={clsx(
+                      "p-1 rounded-lg border border-slate-200/50 bg-white hover:bg-slate-50 transition-colors cursor-pointer shadow-sm",
+                      isMyBed ? "text-amber-500" : "text-slate-400 hover:text-slate-600"
+                    )}
+                    title={isMyBed ? "내 담당 베드 해제" : "내 담당 베드로 지정"}
+                  >
+                    <Star size={15} fill={isMyBed ? "currentColor" : "none"} />
+                  </button>
+                )}
+
+                {isVertical && !isViewerMode && (
+                  <button
+                    onClick={handleClearBed}
+                    className="bg-white hover:bg-red-50 hover:text-red-600 border border-slate-200 text-slate-500 font-black rounded-md transition-colors shadow-sm shrink-0 px-2 md:px-2.5 py-0.5 md:py-1 text-xs"
+                  >
+                    퇴실
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Row 2: Memo Banner (Vertical Case only) / Body Parts & Checkout (Horizontal Case only) */}
