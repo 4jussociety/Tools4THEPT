@@ -255,8 +255,8 @@ function App() {
         </div>
       </header>
 
-      {/* ======== 스태프 모드 툴바 ======== */}
-      {userMode === 'staff' && (
+      {/* ======== 담당 베드 필터 툴바 ======== */}
+      {userMode !== 'viewer' && (
         <StaffModeToolbar
           beds={beds}
           myBeds={myBeds}
@@ -278,8 +278,8 @@ function App() {
             <p className="font-bold text-lg">등록된 베드가 없습니다.</p>
             <p className="text-sm text-slate-400 mt-1">페이지를 새로고침하거나 관리자에게 문의해 주세요.</p>
           </div>
-        ) : userMode === 'staff' && isFilterMyBeds ? (
-          /* 스태프 모드 - 담당 베드 그리드 */
+        ) : userMode !== 'viewer' && isFilterMyBeds ? (
+          /* 담당 베드 그리드 */
           myBeds.length === 0 ? (
             <div className="flex-1 bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center gap-4 min-h-[300px]">
               <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
