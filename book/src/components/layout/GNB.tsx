@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
-import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Copy, Check, Globe } from 'lucide-react'
+import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Copy, Check, Globe, Settings, UserCog } from 'lucide-react'
 import { clsx } from 'clsx'
 
 export default function GNB() {
@@ -24,7 +24,7 @@ export default function GNB() {
 
     const handleLogout = async () => {
         await signOut()
-        navigate('/portal')
+        window.location.href = 'http://localhost:5174/login'
     }
 
     const navItems = [
@@ -33,8 +33,13 @@ export default function GNB() {
         { label: 'AI 음성 차팅', href: '/charting', icon: Sparkles },
     ]
 
-    if (profile?.is_owner) {
-        navItems.push({ label: '통계', href: '/statistics', icon: BarChart3 })
+    // 매니저/원장님 권한 또는 기본 상태일 때 통계, 스태프 관리, 운영 설정 추가
+    if (!isStaffMode) {
+        navItems.push(
+            { label: '경영 통계', href: '/statistics', icon: BarChart3 },
+            { label: '스태프 관리', href: '/members', icon: UserCog },
+            { label: '운영 설정', href: '/settings', icon: Settings }
+        )
     }
 
     const displayName = profile?.full_name || profile?.name || user?.email?.split('@')[0] || '치료사'
@@ -45,24 +50,25 @@ export default function GNB() {
             {/* ─── 데스크톱 상단 네비게이션 ─── */}
             <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 md:px-6 sticky top-0 z-50 font-sans">
                 <div className="flex items-center gap-4 md:gap-8">
-                    <Link to="/portal" className="text-2xl md:text-3xl font-black text-black font-roboto italic tracking-tighter leading-none [-webkit-text-stroke:1px_black]">
+                    <a href="http://localhost:5174/" className="text-2xl md:text-3xl font-black text-black font-roboto italic tracking-tighter leading-none [-webkit-text-stroke:1px_black]">
                         THEPT#
-                    </Link>
+                    </a>
                     {/* 데스크톱 네비 */}
-                    <nav className="hidden md:flex items-center gap-1">
+                    <nav className="hidden lg:flex items-center gap-1">
                         {navItems.map((item) => (
                             <NavLink
                                 key={item.href}
                                 to={item.href}
                                 className={({ isActive }) =>
                                     clsx(
-                                        'px-4 py-2 text-sm font-bold transition-all rounded-lg',
+                                        'px-3 py-2 text-xs md:text-sm font-bold transition-all rounded-lg flex items-center gap-1.5',
                                         isActive
                                             ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                     )
                                 }
                             >
+                                <item.icon className="w-4 h-4" />
                                 {item.label}
                             </NavLink>
                         ))}
@@ -103,31 +109,56 @@ export default function GNB() {
                             </button>
 
                             {profileMenuOpen && (
-                                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50">
-                                    <div className="px-4 py-2.5 border-b border-gray-100 bg-slate-50/50">
+                                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 divide-y divide-slate-100">
+                                    <div className="px-4 py-2.5 bg-slate-50/50">
                                         <p className="text-xs font-bold text-gray-800">{displayName} 치료사님</p>
                                         <p className="text-[10px] text-gray-500 truncate mt-0.5">{displayEmail}</p>
                                     </div>
-                                    <Link
-                                        to="/profile"
-                                        onClick={() => setProfileMenuOpen(false)}
-                                        className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                    >
-                                        <User className="w-4 h-4 text-blue-500" /> 내 프로필 / 마이페이지
-                                    </Link>
-                                    <Link
-                                        to="/portal"
-                                        onClick={() => setProfileMenuOpen(false)}
-                                        className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                    >
-                                        <Globe className="w-4 h-4 text-emerald-500" /> 통합 메인 포털
-                                    </Link>
-                                    <button
-                                        onClick={handleLogout}
-                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 text-left border-t border-gray-100 cursor-pointer"
-                                    >
-                                        <LogOut className="w-4 h-4" /> 로그아웃
-                                    </button>
+                                    <div className="py-1">
+                                        <Link
+                                            to="/profile"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <User className="w-4 h-4 text-blue-500" /> 내 프로필 / 마이페이지
+                                        </Link>
+                                        <Link
+                                            to="/statistics"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <BarChart3 className="w-4 h-4 text-emerald-500" /> 경영 통계 리포트
+                                        </Link>
+                                        <Link
+                                            to="/members"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <UserCog className="w-4 h-4 text-indigo-500" /> 스태프 멤버 관리
+                                        </Link>
+                                        <Link
+                                            to="/settings"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <Settings className="w-4 h-4 text-amber-500" /> 센터 운영 설정
+                                        </Link>
+                                    </div>
+                                    <div className="py-1">
+                                        <a
+                                            href="http://localhost:5174/"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <Globe className="w-4 h-4 text-blue-600" /> 🌐 통합 메인 포털
+                                        </a>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left cursor-pointer"
+                                        >
+                                            <LogOut className="w-4 h-4" /> 로그아웃
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -136,7 +167,7 @@ export default function GNB() {
                     {/* 모바일 햄버거 버튼 */}
                     <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className="md:hidden p-2 text-gray-600 hover:text-gray-900 cursor-pointer"
+                        className="lg:hidden p-2 text-gray-600 hover:text-gray-900 cursor-pointer"
                     >
                         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
@@ -145,7 +176,7 @@ export default function GNB() {
 
             {/* ─── 모바일 서브 메뉴 드롭다운 ─── */}
             {mobileMenuOpen && (
-                <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex flex-col gap-2 font-sans sticky top-16 z-40 shadow-lg">
+                <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex flex-col gap-2 font-sans sticky top-16 z-40 shadow-lg">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.href}
@@ -169,13 +200,13 @@ export default function GNB() {
                     >
                         <User className="w-4 h-4 text-blue-500" /> 내 프로필 (마이페이지)
                     </Link>
-                    <Link
-                        to="/portal"
+                    <a
+                        href="http://localhost:5174/"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-slate-700 bg-slate-100 rounded-lg"
                     >
-                        <Globe className="w-4 h-4 text-blue-500" /> 🌐 통합 포털
-                    </Link>
+                        <Globe className="w-4 h-4 text-blue-500" /> 🌐 통합 메인 포털
+                    </a>
                     {(profile || user) && (
                         <button
                             onClick={handleLogout}
