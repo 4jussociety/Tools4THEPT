@@ -26,7 +26,7 @@ export async function upsertBeds(bedsList: BedData[], ownerId: string) {
     status: bed.status,
     client_name: bed.client_name || null,
     body_part: bed.body_part || null,
-    client_memo: bed.client_memo || null,
+    // client_memo: bed.client_memo || null, // 원격 DB beds 테이블에 client_memo 컬럼이 누락된 스키마 호환성 우회
     current_history_id: bed.current_history_id || null,
     treatments: bed.treatments || [],
     x_pos: Math.round(bed.x_pos),
