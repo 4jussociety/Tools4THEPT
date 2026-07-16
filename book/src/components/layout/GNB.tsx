@@ -33,15 +33,6 @@ export default function GNB() {
         { label: 'AI 음성 차팅', href: '/charting', icon: Sparkles },
     ]
 
-    // 매니저/원장님 권한 또는 기본 상태일 때 통계, 스태프 관리, 운영 설정 추가
-    if (!isStaffMode) {
-        navItems.push(
-            { label: '경영 통계', href: '/statistics', icon: BarChart3 },
-            { label: '스태프 관리', href: '/members', icon: UserCog },
-            { label: '운영 설정', href: '/settings', icon: Settings }
-        )
-    }
-
     const displayName = profile?.full_name || profile?.name || user?.email?.split('@')[0] || '치료사'
     const displayEmail = profile?.email || user?.email || ''
 
@@ -193,13 +184,38 @@ export default function GNB() {
                             {item.label}
                         </NavLink>
                     ))}
-                    <Link
-                        to="/profile"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
-                    >
-                        <User className="w-4 h-4 text-blue-500" /> 내 프로필 (마이페이지)
-                    </Link>
+                    {!isStaffMode && (
+                        <>
+                            <Link
+                                to="/profile"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                            >
+                                <User className="w-4 h-4 text-blue-500" /> 내 프로필 (마이페이지)
+                            </Link>
+                            <Link
+                                to="/statistics"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                            >
+                                <BarChart3 className="w-4 h-4 text-emerald-500" /> 경영 통계 리포트
+                            </Link>
+                            <Link
+                                to="/members"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                            >
+                                <UserCog className="w-4 h-4 text-indigo-500" /> 스태프 멤버 관리
+                            </Link>
+                            <Link
+                                to="/settings"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                            >
+                                <Settings className="w-4 h-4 text-amber-500" /> 센터 운영 설정
+                            </Link>
+                        </>
+                    )}
                     <a
                         href="http://localhost:5174/"
                         onClick={() => setMobileMenuOpen(false)}
