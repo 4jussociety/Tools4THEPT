@@ -107,11 +107,9 @@ export function useLayoutEditor(
       if (error) console.error('Bed Delete DB Error:', error);
     }
 
-    // 베드 Upsert
-    for (const bed of layoutDraft) {
-      const { error } = await bedsApi.upsertBed(bed, ownerId);
-      if (error) console.error('Beds Upsert DB Error:', error);
-    }
+    // 베드 Bulk Upsert
+    const { error: bedsError } = await bedsApi.upsertBeds(layoutDraft, ownerId);
+    if (bedsError) console.error('Beds Bulk Upsert DB Error:', bedsError);
 
     // 삭제된 가구 처리
     if (deletedLayoutObjectIds.length > 0) {
@@ -122,11 +120,9 @@ export function useLayoutEditor(
       setDeletedLayoutObjectIds([]);
     }
 
-    // 가구 Upsert
-    for (const obj of draftLayoutObjects) {
-      const { error } = await layoutApi.upsertLayoutObject(obj, ownerId);
-      if (error) console.error('LayoutObject Upsert DB Error:', error);
-    }
+    // 가구 Bulk Upsert
+    const { error: objectsError } = await layoutApi.upsertLayoutObjects(draftLayoutObjects, ownerId);
+    if (objectsError) console.error('LayoutObjects Bulk Upsert DB Error:', objectsError);
   }, [ownerId, layoutDraft, draftLayoutObjects, canvasDraft, zoom, beds, deletedLayoutObjectIds, setBeds]);
 
   const handleAddBed = useCallback((type: 'GENERAL' | 'SPECIAL') => {

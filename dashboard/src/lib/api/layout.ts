@@ -58,9 +58,11 @@ export async function fetchLayoutObjects(ownerId: string) {
   return { data: data as LayoutObject[] | null, error };
 }
 
-/** 가구/구조물을 upsert합니다. */
-export async function upsertLayoutObject(obj: LayoutObject, ownerId: string) {
-  const { error } = await supabase.from('layout_objects').upsert({
+/** 다수의 가구/구조물을 한 번에 bulk upsert합니다. */
+export async function upsertLayoutObjects(objectsList: LayoutObject[], ownerId: string) {
+  if (objectsList.length === 0) return { error: null };
+
+  const payload = objectsList.map(obj => ({
     id: obj.id,
     object_type: obj.object_type,
     name: obj.name || null,
@@ -71,8 +73,18 @@ export async function upsertLayoutObject(obj: LayoutObject, ownerId: string) {
     rotation: obj.rotation,
     z_index: obj.z_index,
     owner_id: ownerId,
-  });
+  }));
+
+  const { error } = await supabase
+    .from('layout_objects')
+    .upsert(payload, { onConflict: 'id' });
+
   return { error };
+}
+
+/** 단일 가구/구조물을 upsert합니다. */
+export async function upsertLayoutObject(obj: LayoutObject, ownerId: string) {
+  return upsertLayoutObjects([obj], ownerId);
 }
 
 /** 가구/구조물을 삭제합니다. */

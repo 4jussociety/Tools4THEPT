@@ -15,9 +15,11 @@ export async function fetchBeds(ownerId: string) {
   return { data: data as BedData[] | null, error };
 }
 
-/** 베드 정보를 upsert(신규 생성 또는 업데이트)합니다. */
-export async function upsertBed(bed: BedData, ownerId: string) {
-  const { error } = await supabase.from('beds').upsert({
+/** 다수의 베드 정보를 한 번에 bulk upsert(생성 또는 업데이트)합니다. */
+export async function upsertBeds(bedsList: BedData[], ownerId: string) {
+  if (bedsList.length === 0) return { error: null };
+  
+  const payload = bedsList.map(bed => ({
     id: bed.id,
     bed_number: bed.bed_number,
     bed_type: bed.bed_type || 'GENERAL',
@@ -33,8 +35,18 @@ export async function upsertBed(bed: BedData, ownerId: string) {
     height: Math.round(bed.height),
     orientation: bed.orientation,
     owner_id: ownerId,
-  });
+  }));
+
+  const { error } = await supabase
+    .from('beds')
+    .upsert(payload, { onConflict: 'id' });
+  
   return { error };
+}
+
+/** 단일 베드 정보를 upsert합니다. */
+export async function upsertBed(bed: BedData, ownerId: string) {
+  return upsertBeds([bed], ownerId);
 }
 
 /** 베드의 상태만 부분 업데이트합니다. */
