@@ -59,43 +59,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     useEffect(() => {
-        // 1. Cross-origin token synchronization via URL hash (#access_token=...)
-        const hash = window.location.hash;
-        if (hash && hash.includes('access_token=')) {
-            const params = new URLSearchParams(hash.substring(1));
-            const accessToken = params.get('access_token');
-            const refreshToken = params.get('refresh_token');
+        let isMounted = true
 
-            if (accessToken && refreshToken) {
-                supabase.auth.setSession({
-                    access_token: accessToken,
-                    refresh_token: refreshToken,
-                }).then(({ data, error }) => {
-                    if (!error && data.session) {
-                        setSession(data.session);
-                        setUser(data.session.user);
-                        setOwnerId(data.session.user.id);
-                        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
-                        fetchProfile(data.session.user.id, data.session.user.email).finally(() => setLoading(false));
+        const initAuth = async () => {
+            const hash = window.location.hash
+            let currentSession: Session | null = null
+
+            // 1. URL Hash에서 access_token / refresh_token 동기화 (SSO)
+            if (hash && hash.includes('access_token=')) {
+                const params = new URLSearchParams(hash.substring(1))
+                const accessToken = params.get('access_token')
+                const refreshToken = params.get('refresh_token')
+
+                if (accessToken && refreshToken) {
+                    try {
+                        const { data, error } = await supabase.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken,
+                        })
+                        if (!error && data.session) {
+                            currentSession = data.session
+                            window.history.replaceState(null, document.title, window.location.pathname + window.location.search)
+                        }
+                    } catch (e) {
+                        console.error('SSO setSession Error:', e)
                     }
-                });
+                }
             }
+
+            // 2. Hash 토큰으로 세션을 세팅하지 못한 경우 기존 저장 세션 조회
+            if (!currentSession) {
+                const { data } = await supabase.auth.getSession()
+                currentSession = data.session
+            }
+
+            if (!isMounted) return
+
+            setSession(currentSession)
+            setUser(currentSession?.user ?? null)
+
+            if (currentSession?.user) {
+                setOwnerId(currentSession.user.id)
+                await fetchProfile(currentSession.user.id, currentSession.user.email)
+            } else {
+                setProfile(null)
+                setOwnerId(null)
+            }
+
+            setLoading(false)
         }
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session)
-            setUser(session?.user ?? null)
-            if (session?.user) {
-                setOwnerId(session.user.id)
-                fetchProfile(session.user.id, session.user.email).finally(() => setLoading(false))
-            } else {
-                setLoading(false)
-            }
-        })
+        initAuth()
 
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!isMounted) return
             setSession(session)
             setUser(session?.user ?? null)
             if (session?.user) {
@@ -108,7 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         })
 
-        return () => subscription.unsubscribe()
+        return () => {
+            isMounted = false
+            subscription.unsubscribe()
+        }
     }, [fetchProfile])
 
     const value = {
