@@ -1,8 +1,16 @@
 {
-    "rewrites": [
-        {
-            "source": "/(.*)",
-            "destination": "/index.html"
-        }
-    ]
+  "rewrites": [
+    {
+      "source": "/book/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/book/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
