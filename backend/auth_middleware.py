@@ -83,11 +83,15 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Security(sec
     """
     secret_str = os.getenv("SUPABASE_JWT_SECRET", "")
     
+    # DB Foreign Key 제약조건(profiles.id -> auth.users.id)을 만족하기 위해, 
+    # 로컬 개발/Mock 환경에서는 DB에 존재하는 실제 사용자 ID를 더미 ID로 사용합니다.
+    DUMMY_USER_ID = "5deba64e-7549-4cd7-a903-1a395332f03a"
+
     if not credentials:
         # 인증 헤더가 누락된 경우
         if not secret_str or secret_str == "your-jwt-secret":
             print("Warning: Authorization header missing and JWT secret is placeholder. Using dummy_user_id for testing.")
-            return "00000000-0000-0000-0000-000000000000"
+            return DUMMY_USER_ID
         raise HTTPException(status_code=401, detail="Authorization header is missing")
 
     token = credentials.credentials
@@ -100,9 +104,14 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Security(sec
             print(f"  Extracted user_id (unverified): {user_id}")
             return user_id
         print("  Failed to extract sub from JWT. Returning dummy user_id.")
-        return "00000000-0000-0000-0000-000000000000"
+        return DUMMY_USER_ID
 
     # JWT Secret이 설정된 경우: 정식 검증 모드
+    # 로컬 Mocking용 더미 토큰 바이패스 처리
+    if token == "00000000-0000-0000-0000-000000000000":
+        print("Warning: Dummy token detected. Returning dummy user_id mappings.")
+        return DUMMY_USER_ID
+
     # 토큰 헤더의 alg 값을 확인하여 적절한 키와 알고리즘으로 검증
     alg = _detect_token_algorithm(token)
     
@@ -144,4 +153,5 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Security(sec
     except jwt.InvalidTokenError as e:
         print(f"JWT Verification Error (Invalid): {e}, token: {token[:15]}...{token[-15:] if len(token) > 30 else ''}")
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+
 
