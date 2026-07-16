@@ -72,9 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile({
                 id: 'staff-guest',
                 email: 'staff@clinic.internal',
-                full_name: '스태프 치료사',
-                role: 'THERAPIST',
+                full_name: '스태프 어시스턴트',
+                role: 'STAFF',
                 system_id: ownerParam,
+                is_owner: false,
             } as Profile)
             setLoading(false)
             return
