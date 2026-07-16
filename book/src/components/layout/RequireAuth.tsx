@@ -1,5 +1,5 @@
 import { useAuth } from '@/features/auth/AuthContext'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import AccessPendingScreen from '@/features/auth/AccessPendingScreen'
 
 export default function RequireAuth() {
@@ -14,7 +14,7 @@ export default function RequireAuth() {
     }
 
     if (!session) {
-        window.location.href = 'http://localhost:5174/login';
+        window.location.href = '/login';
         return null;
     }
 

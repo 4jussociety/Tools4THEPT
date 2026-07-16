@@ -9,13 +9,12 @@ import { clsx } from 'clsx'
 
 export default function GNB() {
     const { profile, user, signOut } = useAuth()
-    const navigate = useNavigate()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
     const handleLogout = async () => {
         await signOut()
-        window.location.href = 'http://localhost:5174/login'
+        window.location.href = '/login'
     }
 
     const navItems = [
@@ -32,7 +31,7 @@ export default function GNB() {
             {/* ─── 데스크톱 상단 네비게이션 ─── */}
             <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 md:px-6 sticky top-0 z-50 font-sans">
                 <div className="flex items-center gap-4 md:gap-8">
-                    <a href="http://localhost:5174/" className="text-2xl md:text-3xl font-black text-black font-roboto italic tracking-tighter leading-none [-webkit-text-stroke:1px_black]">
+                    <a href="/portal" className="text-2xl md:text-3xl font-black text-black font-roboto italic tracking-tighter leading-none [-webkit-text-stroke:1px_black]">
                         THEPT#
                     </a>
                     {/* 데스크톱 네비 */}
@@ -109,7 +108,7 @@ export default function GNB() {
                                     </div>
                                     <div className="py-1">
                                         <a
-                                            href="http://localhost:5174/"
+                                            href="/portal"
                                             onClick={() => setProfileMenuOpen(false)}
                                             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                                         >
@@ -185,7 +184,7 @@ export default function GNB() {
                         <Settings className="w-4 h-4 text-amber-500" /> 센터 운영 설정
                     </Link>
                     <a
-                        href="http://localhost:5174/"
+                        href="/portal"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-slate-700 bg-slate-100 rounded-lg"
                     >
