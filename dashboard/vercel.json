@@ -5,6 +5,78 @@
       "destination": "https://YOUR-FASTAPI-BACKEND-URL/record/api/:path*"
     },
     {
+      "source": "/calendar/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/calendar/:path*"
+    },
+    {
+      "source": "/calendar",
+      "destination": "https://4thept-record-frontend.vercel.app/calendar"
+    },
+    {
+      "source": "/clients/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/clients/:path*"
+    },
+    {
+      "source": "/clients",
+      "destination": "https://4thept-record-frontend.vercel.app/clients"
+    },
+    {
+      "source": "/charting/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/charting/:path*"
+    },
+    {
+      "source": "/charting",
+      "destination": "https://4thept-record-frontend.vercel.app/charting"
+    },
+    {
+      "source": "/profile/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/profile/:path*"
+    },
+    {
+      "source": "/profile",
+      "destination": "https://4thept-record-frontend.vercel.app/profile"
+    },
+    {
+      "source": "/members/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/members/:path*"
+    },
+    {
+      "source": "/members",
+      "destination": "https://4thept-record-frontend.vercel.app/members"
+    },
+    {
+      "source": "/statistics/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/statistics/:path*"
+    },
+    {
+      "source": "/statistics",
+      "destination": "https://4thept-record-frontend.vercel.app/statistics"
+    },
+    {
+      "source": "/settings/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/settings/:path*"
+    },
+    {
+      "source": "/settings",
+      "destination": "https://4thept-record-frontend.vercel.app/settings"
+    },
+    {
+      "source": "/portal/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/portal/:path*"
+    },
+    {
+      "source": "/portal",
+      "destination": "https://4thept-record-frontend.vercel.app/portal"
+    },
+    {
+      "source": "/login/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/login/:path*"
+    },
+    {
+      "source": "/login",
+      "destination": "https://4thept-record-frontend.vercel.app/login"
+    },
+    {
       "source": "/record/:path*",
       "destination": "https://4thept-record-frontend.vercel.app/record/:path*"
     },
