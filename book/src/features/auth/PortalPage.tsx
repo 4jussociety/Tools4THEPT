@@ -19,7 +19,7 @@ export function PortalPage() {
         const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.');
         const dashboardBase = isLocal 
             ? `${window.location.protocol}//${hostname}:5173` 
-            : `${window.location.origin}/app`;
+            : `${window.location.origin}/dashboard`;
         if (session?.access_token && session?.refresh_token) {
             const dashboardUrl = `${dashboardBase}#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
             window.location.href = dashboardUrl

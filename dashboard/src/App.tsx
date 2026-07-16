@@ -167,13 +167,13 @@ function App() {
                   
                   {/* 직접 모드 전환 버튼 */}
                   <button
-                    onClick={() => { window.location.href = `/app?mode=viewer&owner=${ownerId || ''}`; }}
+                    onClick={() => { window.location.href = `/dashboard?mode=viewer&owner=${ownerId || ''}`; }}
                     className="text-[10px] bg-amber-50 border border-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-black hover:bg-amber-100 transition-colors cursor-pointer"
                   >
                     👁 뷰어 모드 전환
                   </button>
                   <button
-                    onClick={() => { window.location.href = `/app?mode=staff&owner=${ownerId || ''}`; }}
+                    onClick={() => { window.location.href = `/dashboard?mode=staff&owner=${ownerId || ''}`; }}
                     className="text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black hover:bg-emerald-100 transition-colors cursor-pointer"
                   >
                     🧑‍⚕️ 스태프 모드 전환
@@ -181,7 +181,7 @@ function App() {
 
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(window.location.origin + `/app?mode=viewer&owner=${ownerId || ''}`);
+                      navigator.clipboard.writeText(window.location.origin + `/dashboard?mode=viewer&owner=${ownerId || ''}`);
                       alert('뷰어(읽기전용) 링크가 복사되었습니다!');
                     }}
                     className="text-left text-xs font-bold text-amber-500 hover:text-amber-700 transition-colors flex items-center gap-1 group w-max"
@@ -190,7 +190,7 @@ function App() {
                   </button>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(window.location.origin + `/app?mode=staff&owner=${ownerId || ''}`);
+                      navigator.clipboard.writeText(window.location.origin + `/dashboard?mode=staff&owner=${ownerId || ''}`);
                       alert('스태프(베드 조작 가능) 링크가 복사되었습니다!');
                     }}
                     className="text-left text-xs font-bold text-emerald-500 hover:text-emerald-700 transition-colors flex items-center gap-1 group w-max"

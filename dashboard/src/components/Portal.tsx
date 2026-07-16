@@ -289,7 +289,7 @@ export function Portal({ initialView }: PortalProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   onClick={() => {
-                    const link = `${window.location.origin}/app?mode=viewer&owner=${session?.user?.id || ''}`;
+                    const link = `${window.location.origin}/dashboard?mode=viewer&owner=${session?.user?.id || ''}`;
                     navigator.clipboard.writeText(link);
                     alert('뷰어(읽기전용) 링크가 복사되었습니다!\n스태프에게 공유하면 로그인 없이 상황판을 조회할 수 있습니다.');
                   }}
@@ -305,7 +305,7 @@ export function Portal({ initialView }: PortalProps) {
 
                 <button
                   onClick={() => {
-                    const link = `${window.location.origin}/app?mode=staff&owner=${session?.user?.id || ''}`;
+                    const link = `${window.location.origin}/dashboard?mode=staff&owner=${session?.user?.id || ''}`;
                     navigator.clipboard.writeText(link);
                     alert('스태프(베드 조작 가능) 링크가 복사되었습니다!\n스태프에게 공유하면 로그인 없이 베드를 조작할 수 있습니다.');
                   }}
