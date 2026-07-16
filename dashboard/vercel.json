@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/record/api/:path*",
+      "destination": "https://YOUR-FASTAPI-BACKEND-URL/record/api/:path*"
+    },
+    {
+      "source": "/record/:path*",
+      "destination": "https://4thept-record-frontend.vercel.app/record/:path*"
+    },
+    {
+      "source": "/dashboard/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/dashboard/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
