@@ -104,6 +104,8 @@ export async function createClient(client: Partial<Client>) {
             chart_number: client.chart_number || null,
             memo: client.memo || null,
             system_id: client.system_id || null,
+            gender: client.gender || null,
+            birth_date: client.birth_date || null,
         }
 
         const { data: fallbackData, error: fallbackError } = await supabase
@@ -136,6 +138,8 @@ export async function updateClient(id: string, updates: Partial<Client>) {
             phone: updates.phone,
             chart_number: updates.chart_number,
             memo: updates.memo,
+            gender: updates.gender,
+            birth_date: updates.birth_date,
         }
 
         const { data: fallbackData, error: fallbackError } = await supabase
