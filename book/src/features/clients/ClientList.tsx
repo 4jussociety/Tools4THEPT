@@ -8,6 +8,7 @@ import type { ClientWithDetails } from './api'
 import { Plus, Search, Trash2, Edit, CalendarPlus, Users, Hash, MessageSquare, X } from 'lucide-react'
 import ClientModal from './ClientModal'
 import ClientMembershipsPanel from './ClientMembershipsPanel'
+import ClientChartingHistoryPanel from './ClientChartingHistoryPanel'
 import { format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
@@ -23,6 +24,7 @@ export default function ClientList() {
     const isMobile = useIsMobile()
     const { profile } = useAuth()
     const [ticketClient, setTicketClient] = useState<Client | null>(null)
+    const [detailTab, setDetailTab] = useState<'ticket' | 'charting'>('ticket')
 
     const queryClient = useQueryClient()
 
@@ -354,22 +356,52 @@ export default function ClientList() {
                 initialData={editingClient}
             />
 
-            {/* 이용권 전용 모달 */}
+            {/* 이용권 & 임상 AI 차팅 이력 상세 모달 */}
             {ticketClient && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setTicketClient(null)}>
-                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 relative animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200" onClick={() => { setTicketClient(null); setDetailTab('ticket'); }}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 relative animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <button
-                            onClick={() => setTicketClient(null)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                            onClick={() => { setTicketClient(null); setDetailTab('ticket'); }}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-slate-100 rounded-lg cursor-pointer"
                         >
                             <X className="w-5 h-5" />
                         </button>
-                        <h2 className="text-lg font-black text-gray-900 mb-1">{ticketClient.name}</h2>
-                        <p className="text-xs text-gray-400 mb-4">이용권 관리</p>
-                        <ClientMembershipsPanel clientId={ticketClient.id} />
+                        <h2 className="text-lg font-black text-gray-900 mb-0.5">{ticketClient.name} 고객님</h2>
+                        <p className="text-xs text-gray-400 mb-4">고객 상세 관리 및 히스토리</p>
+
+                        {/* 상단 탭 컨트롤 */}
+                        <div className="flex border-b border-gray-100 mb-4">
+                            <button
+                                onClick={() => setDetailTab('ticket')}
+                                className={`flex-1 pb-2.5 text-xs font-black border-b-2 text-center transition cursor-pointer ${
+                                    detailTab === 'ticket'
+                                        ? 'border-blue-600 text-blue-600 font-bold'
+                                        : 'border-transparent text-gray-400 hover:text-gray-600 font-medium'
+                                }`}
+                            >
+                                🎫 이용권 관리
+                            </button>
+                            <button
+                                onClick={() => setDetailTab('charting')}
+                                className={`flex-1 pb-2.5 text-xs font-black border-b-2 text-center transition cursor-pointer ${
+                                    detailTab === 'charting'
+                                        ? 'border-blue-600 text-blue-600 font-bold'
+                                        : 'border-transparent text-gray-400 hover:text-gray-600 font-medium'
+                                }`}
+                            >
+                                🎙️ AI 임상 차트 기록
+                            </button>
+                        </div>
+
+                        {/* 탭 내용 분기 */}
+                        {detailTab === 'ticket' ? (
+                            <ClientMembershipsPanel clientId={ticketClient.id} />
+                        ) : (
+                            <ClientChartingHistoryPanel clientId={ticketClient.id} />
+                        )}
                     </div>
                 </div>
             )}
-        </div >
+        </div>
     )
 }

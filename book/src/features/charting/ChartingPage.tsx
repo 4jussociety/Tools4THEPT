@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sparkles, History, Search } from 'lucide-react';
 import { AudioUploadForm } from './components/AudioUploadForm';
 import { ManualTherapyRecordForm } from './components/ManualTherapyRecordForm';
@@ -6,6 +7,8 @@ import { ClinicalSoapChart } from './components/ClinicalSoapChart';
 import type { SessionResult } from './types/charting';
 
 export default function ChartingPage() {
+  const [searchParams] = useSearchParams();
+  const clientId = searchParams.get('client_id') || searchParams.get('clientId') || undefined;
   const [activeTab, setActiveTab] = useState<'upload' | 'manual-therapy' | 'soap'>('upload');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
 
@@ -32,6 +35,7 @@ export default function ChartingPage() {
         {/* Left Side: Upload Form & Guide */}
         <div className="lg:col-span-5 space-y-4">
           <AudioUploadForm
+            clientId={clientId}
             onAnalysisCompleted={(res) => {
               setSessionResult(res);
               setActiveTab('manual-therapy');
