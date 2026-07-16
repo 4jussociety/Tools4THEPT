@@ -18,7 +18,8 @@ export default function RequireAuth() {
     }
 
     if (!session) {
-        return <Navigate to="/login" replace />
+        window.location.href = 'http://localhost:5174/login';
+        return null;
     }
 
     // 승인 대기 또는 거절된 경우
