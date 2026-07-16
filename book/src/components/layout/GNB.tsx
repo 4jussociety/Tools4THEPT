@@ -4,23 +4,14 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
-import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Copy, Check, Globe, Settings, UserCog } from 'lucide-react'
+import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Globe, Settings, UserCog } from 'lucide-react'
 import { clsx } from 'clsx'
 
 export default function GNB() {
-    const { profile, user, isStaffMode, ownerId, signOut } = useAuth()
+    const { profile, user, signOut } = useAuth()
     const navigate = useNavigate()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-    const [copied, setCopied] = useState(false)
-
-    const handleCopyStaffLink = () => {
-        const targetOwnerId = ownerId || profile?.id || user?.id || ''
-        const staffUrl = `${window.location.origin}/calendar?mode=staff&owner=${targetOwnerId}`
-        navigator.clipboard.writeText(staffUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-    }
 
     const handleLogout = async () => {
         await signOut()
@@ -67,27 +58,8 @@ export default function GNB() {
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-3 relative">
-                    {/* 원장님/관리자 모드: 스태프 공유 링크 복사 버튼 */}
-                    {(!isStaffMode && (profile || user)) && (
-                        <button
-                            onClick={handleCopyStaffLink}
-                            className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold transition border border-emerald-200 cursor-pointer"
-                        >
-                            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-emerald-600" />}
-                            <span>{copied ? '복사됨!' : '📋 스태프 링크 복사'}</span>
-                        </button>
-                    )}
-
-                    {/* 스태프 모드 배지 */}
-                    {isStaffMode && (
-                        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-1 rounded-full text-xs font-black flex items-center gap-1">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>스태프 전용 모드</span>
-                        </div>
-                    )}
-
                     {/* 프로필 / 드롭다운 */}
-                    {(profile || user) && !isStaffMode && (
+                    {(profile || user) && (
                         <div className="relative">
                             <button
                                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -184,38 +156,34 @@ export default function GNB() {
                             {item.label}
                         </NavLink>
                     ))}
-                    {!isStaffMode && (
-                        <>
-                            <Link
-                                to="/profile"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
-                            >
-                                <User className="w-4 h-4 text-blue-500" /> 내 프로필 (마이페이지)
-                            </Link>
-                            <Link
-                                to="/statistics"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
-                            >
-                                <BarChart3 className="w-4 h-4 text-emerald-500" /> 경영 통계 리포트
-                            </Link>
-                            <Link
-                                to="/members"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
-                            >
-                                <UserCog className="w-4 h-4 text-indigo-500" /> 스태프 멤버 관리
-                            </Link>
-                            <Link
-                                to="/settings"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
-                            >
-                                <Settings className="w-4 h-4 text-amber-500" /> 센터 운영 설정
-                            </Link>
-                        </>
-                    )}
+                    <Link
+                        to="/profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                    >
+                        <User className="w-4 h-4 text-blue-500" /> 내 프로필 (마이페이지)
+                    </Link>
+                    <Link
+                        to="/statistics"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                    >
+                        <BarChart3 className="w-4 h-4 text-emerald-500" /> 경영 통계 리포트
+                    </Link>
+                    <Link
+                        to="/members"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                    >
+                        <UserCog className="w-4 h-4 text-indigo-500" /> 스태프 멤버 관리
+                    </Link>
+                    <Link
+                        to="/settings"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg"
+                    >
+                        <Settings className="w-4 h-4 text-amber-500" /> 센터 운영 설정
+                    </Link>
                     <a
                         href="http://localhost:5174/"
                         onClick={() => setMobileMenuOpen(false)}

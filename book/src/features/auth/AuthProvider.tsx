@@ -10,7 +10,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [profile, setProfile] = useState<Profile | null>(null)
     const [guestStatus, setGuestStatus] = useState<GuestStatus>('approved')
-    const [isStaffMode, setIsStaffMode] = useState<boolean>(false)
     const [ownerId, setOwnerId] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
 
@@ -60,27 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search)
-        const staffMode = urlParams.get('mode') === 'staff'
-        const ownerParam = urlParams.get('owner')
-
-        setIsStaffMode(staffMode)
-
-        if (staffMode && ownerParam) {
-            setOwnerId(ownerParam)
-            // Virtual Profile for Staff Mode Link
-            setProfile({
-                id: 'staff-guest',
-                email: 'staff@clinic.internal',
-                full_name: '스태프 어시스턴트',
-                role: 'STAFF',
-                system_id: ownerParam,
-                is_owner: false,
-            } as Profile)
-            setLoading(false)
-            return
-        }
-
         // 1. Cross-origin token synchronization via URL hash (#access_token=...)
         const hash = window.location.hash;
         if (hash && hash.includes('access_token=')) {
@@ -138,7 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         guestStatus,
-        isStaffMode,
         ownerId,
         loading,
         refreshProfile: async () => {

@@ -104,16 +104,11 @@ export default function WeekView() {
         .filter(ad => ad.is_active && ad.slot_id === 'instructor_bottom')
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
 
-    // 현재 소속 센터의 실제 등록 치료사 목록만 타임라인 컬럼으로 필터링
-    const actualTherapists = (rawProfiles && rawProfiles.length > 0)
-        ? rawProfiles.filter((p: { id: string; role?: string }) => p.id !== 'staff-guest' && p.role !== 'STAFF')
-        : []
-
-    const profiles = actualTherapists.length > 0
-        ? actualTherapists
+    const profiles = (rawProfiles && rawProfiles.length > 0)
+        ? rawProfiles
         : [{
-            id: (profile?.id && profile.id !== 'staff-guest') ? profile.id : (user?.id || 'default-instructor'),
-            full_name: (profile?.full_name && profile.id !== 'staff-guest') ? profile.full_name : '담당 치료사',
+            id: profile?.id || user?.id || 'default-instructor',
+            full_name: profile?.full_name || profile?.name || user?.email?.split('@')[0] || '담당 치료사',
             email: profile?.email || user?.email || '',
             role: 'THERAPIST'
         } as any]

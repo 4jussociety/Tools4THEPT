@@ -142,7 +142,7 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
 
                     const validInstructorId = (initialData.instructor_id && profiles?.some(p => p.id === initialData.instructor_id))
                         ? initialData.instructor_id
-                        : (myProfile?.id && myProfile.id !== 'staff-guest' && profiles?.some(p => p.id === myProfile.id))
+                        : (myProfile?.id && profiles?.some(p => p.id === myProfile.id))
                             ? myProfile.id
                             : profiles?.[0]?.id || ''
                     setValue('instructor_id', validInstructorId)
@@ -522,7 +522,7 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                             className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold cursor-pointer transition-all text-xs h-[42px]"
                                         >
                                             <option value="">선택</option>
-                                            {profiles?.filter(p => p.id !== 'staff-guest' && p.role !== 'STAFF').map(p => <option key={p.id} value={p.id}>{p.full_name || p.name}</option>)}
+                                            {profiles?.map(p => <option key={p.id} value={p.id}>{p.full_name || p.name}</option>)}
                                         </select>
                                     </div>
 

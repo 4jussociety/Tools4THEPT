@@ -9,7 +9,6 @@ interface AuthContextType {
     user: User | null
     profile: Profile | null
     guestStatus: GuestStatus
-    isStaffMode: boolean
     ownerId: string | null
     loading: boolean
     refreshProfile: () => Promise<void>
@@ -21,7 +20,6 @@ export const AuthContext = createContext<AuthContextType>({
     user: null,
     profile: null,
     guestStatus: null,
-    isStaffMode: false,
     ownerId: null,
     loading: true,
     refreshProfile: async () => { },
