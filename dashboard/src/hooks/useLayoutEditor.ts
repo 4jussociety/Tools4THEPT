@@ -85,44 +85,76 @@ export function useLayoutEditor(
 
   const handleSaveLayout = useCallback(async () => {
     if (!ownerId) return;
-    setIsEditMode(false);
 
-    // Optimistic UI update
-    setBeds(layoutDraft);
-    setLayoutObjects(draftLayoutObjects);
-    setCanvasSize(canvasDraft);
-
-    // DB Update - Canvas Size & Zoom
-    await layoutApi.updateLayoutSettings(ownerId, {
-      canvas_width: canvasDraft.width,
-      canvas_height: canvasDraft.height,
-      zoom: zoom,
-    });
-
-    // 삭제된 베드 처리
-    const draftIds = layoutDraft.map(b => b.id);
-    const deletedBeds = beds.filter(b => !draftIds.includes(b.id));
-    for (const bed of deletedBeds) {
-      const { error } = await bedsApi.deleteBed(bed.id, ownerId);
-      if (error) console.error('Bed Delete DB Error:', error);
-    }
-
-    // 베드 Bulk Upsert
-    const { error: bedsError } = await bedsApi.upsertBeds(layoutDraft, ownerId);
-    if (bedsError) console.error('Beds Bulk Upsert DB Error:', bedsError);
-
-    // 삭제된 가구 처리
-    if (deletedLayoutObjectIds.length > 0) {
-      for (const id of deletedLayoutObjectIds) {
-        const { error } = await layoutApi.deleteLayoutObject(id, ownerId);
-        if (error) console.error('LayoutObject Delete DB Error:', error);
+    try {
+      // 1. 베드 Bulk Upsert
+      const { error: bedsError } = await bedsApi.upsertBeds(layoutDraft, ownerId);
+      if (bedsError) {
+        throw new Error(`베드 배치 저장 실패: ${bedsError.message}`);
       }
-      setDeletedLayoutObjectIds([]);
-    }
 
-    // 가구 Bulk Upsert
-    const { error: objectsError } = await layoutApi.upsertLayoutObjects(draftLayoutObjects, ownerId);
-    if (objectsError) console.error('LayoutObjects Bulk Upsert DB Error:', objectsError);
+      // 2. 삭제된 베드 처리
+      const draftIds = layoutDraft.map(b => b.id);
+      const deletedBeds = beds.filter(b => !draftIds.includes(b.id));
+      for (const bed of deletedBeds) {
+        const { error } = await bedsApi.deleteBed(bed.id, ownerId);
+        if (error) {
+          throw new Error(`베드 삭제 실패: ${error.message}`);
+        }
+      }
+
+      // 3. 삭제된 가구 처리
+      if (deletedLayoutObjectIds.length > 0) {
+        for (const id of deletedLayoutObjectIds) {
+          const { error } = await layoutApi.deleteLayoutObject(id, ownerId);
+          if (error) {
+            throw new Error(`가구 삭제 실패: ${error.message}`);
+          }
+        }
+        setDeletedLayoutObjectIds([]);
+      }
+
+      // 4. 가구 Bulk Upsert
+      const { error: objectsError } = await layoutApi.upsertLayoutObjects(draftLayoutObjects, ownerId);
+      if (objectsError) {
+        throw new Error(`가구 배치 저장 실패: ${objectsError.message}`);
+      }
+
+      // 5. DB Update - Canvas Size & Zoom
+      const { error: settingsError } = await layoutApi.updateLayoutSettings(ownerId, {
+        canvas_width: canvasDraft.width,
+        canvas_height: canvasDraft.height,
+        zoom: zoom,
+      });
+      if (settingsError) {
+        // layout_settings가 최초 가입 후 존재하지 않을 수 있으므로 insert 시도
+        const { error: insertError } = await layoutApi.insertDefaultLayoutSettings(ownerId);
+        if (insertError) {
+          throw new Error(`화면 크기 설정 저장 실패: ${settingsError.message || insertError.message}`);
+        } else {
+          // insert 성공 후 다시 update 시도
+          const { error: retryError } = await layoutApi.updateLayoutSettings(ownerId, {
+            canvas_width: canvasDraft.width,
+            canvas_height: canvasDraft.height,
+            zoom: zoom,
+          });
+          if (retryError) {
+            throw new Error(`화면 크기 설정 재저장 실패: ${retryError.message}`);
+          }
+        }
+      }
+
+      // 모든 저장이 성공한 경우에만 UI 상태 확정 반영 및 편집 모드 종료
+      setBeds(layoutDraft);
+      setLayoutObjects(draftLayoutObjects);
+      setCanvasSize(canvasDraft);
+      setIsEditMode(false);
+      alert('배치 저장이 완료되었습니다!');
+      
+    } catch (err: any) {
+      console.error('Layout Save DB Error:', err);
+      alert(`배치 저장 중 오류가 발생했습니다.\n${err.message || err}`);
+    }
   }, [ownerId, layoutDraft, draftLayoutObjects, canvasDraft, zoom, beds, deletedLayoutObjectIds, setBeds]);
 
   const handleAddBed = useCallback((type: 'GENERAL' | 'SPECIAL') => {
