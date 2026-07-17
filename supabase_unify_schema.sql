@@ -21,20 +21,12 @@ ALTER TABLE public.appointments ALTER COLUMN patient_id DROP NOT NULL;
 ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS appointments_patient_id_fkey;
 
 -- 2-2. 예약 생성/수정 시 instructor_id -> therapist_id, client_id -> patient_id 자동 동기화 트리거 함수 생성
-CREATE OR REPLACE FUNCTION public.sync_appointment_legacy_fields()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.therapist_id := NEW.instructor_id;
-  NEW.patient_id := NEW.client_id;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 2-3. 트리거 생성
-DROP TRIGGER IF EXISTS on_appointment_sync ON public.appointments;
-CREATE TRIGGER on_appointment_sync
-  BEFORE INSERT OR UPDATE ON public.appointments
-  FOR EACH ROW EXECUTE PROCEDURE public.sync_appointment_legacy_fields();
+// Legacy sync function and trigger removed (no longer used in current pipeline)
+// ----------------------------------------------------------
+// The following block was used for legacy field synchronization between
+// old column names (instructor_id, client_id) and the new schema (therapist_id,
+// patient_id). The current pipeline no longer relies on these triggers.
+// ----------------------------------------------------------
 
 -- 2-4. 기존 예약 데이터들의 레거시 필드 소급 동기화
 UPDATE public.appointments
@@ -71,3 +63,38 @@ UPDATE public.sessions
 SET therapy_date = CAST(created_at AS DATE),
     therapy_time = CAST(created_at AS TIME)
 WHERE therapy_date IS NULL;
+-- 5. 차팅 세션 ↔ 예약 매핑 테이블
+CREATE TABLE IF NOT EXISTS public.appointment_chart_map (
+  appointment_id uuid NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  chart_id       uuid NOT NULL REFERENCES public.charts(id)      ON DELETE CASCADE,
+  linked_at      timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (appointment_id, chart_id)
+);
+CREATE INDEX IF NOT EXISTS idx_appointment_chart_map_appointment ON public.appointment_chart_map (appointment_id);
+CREATE INDEX IF NOT EXISTS idx_appointment_chart_map_chart ON public.appointment_chart_map (chart_id);
+
+-- 6. 세션에 차트 ID 컬럼 (optional, for 직접 연관)
+ALTER TABLE public.sessions
+  ADD COLUMN IF NOT EXISTS chart_id uuid REFERENCES public.charts(id);
+
+-- 7. 차트 생성 시 예약과 자동 매핑 트리거
+CREATE OR REPLACE FUNCTION public.link_chart_to_appointment()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.appointment_chart_map (appointment_id, chart_id)
+  SELECT a.id, NEW.id
+  FROM public.appointments a
+  WHERE a.scheduled_at <= now()
+    AND a.status = 'completed'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.appointment_chart_map am
+      WHERE am.appointment_id = a.id AND am.chart_id = NEW.id
+    );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_link_chart_to_appointment ON public.charts;
+CREATE TRIGGER trg_link_chart_to_appointment
+AFTER INSERT ON public.charts
+FOR EACH ROW EXECUTE FUNCTION public.link_chart_to_appointment();

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
+import { ChartListModal } from '@/components/ChartListModal';
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -49,7 +50,8 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
     const [step, setStep] = useState<ModalStep>('TYPE_SELECT')
     const [selectedClient, setselectedClient] = useState<Client | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [isChartingOpen, setIsChartingOpen] = useState(false)
+    const [isChartingOpen, setIsChartingOpen] = useState(false);
+    const [isChartListOpen, setIsChartListOpen] = useState(false);
 
     // Quick Package Purchase State
     const [showPackageForm, setShowPackageForm] = useState(false)
@@ -314,7 +316,9 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
         }
     }
 
-    if (!isOpen) return null
+    if (!isOpen) return null;
+    
+    // Chart List Modal (state moved to top)
 
     // Filtered clients for search
     const ClientList = (clients ?? []) as Client[]
@@ -324,6 +328,7 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 font-sans" onClick={onClose}>
+            <ChartListModal isOpen={isChartListOpen} onClose={() => setIsChartListOpen(false)} appointmentId={editingAppointment?.id || ''} />
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[480px] max-h-[95vh] overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                 {/* Step 1: Type Select */}
                 {step === 'TYPE_SELECT' && (
@@ -739,6 +744,16 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                     placeholder={selectedClient ? "새로운 메모를 입력하세요 (저장 시 날짜와 함께 상단에 추가됩니다)" : "메모 입력..."}
                                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-xs resize-none transition-all placeholder:font-medium"
                                 />
+                                {/* 차트 보기 버튼 추가 */}
+                                {editingAppointment && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsChartListOpen(true)}
+                                        className="ml-2 px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition text-xs"
+                                    >
+                                        차트 보기
+                                    </button>
+                                )}
                             </div>
 
                             {/* Footer Info */}
