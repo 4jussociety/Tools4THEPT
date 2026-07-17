@@ -27,6 +27,23 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showRecordingGuide, setShowRecordingGuide] = useState(false);
+  const [chunkStatuses, setChunkStatuses] = useState<{ [key: number]: string }>({});
+
+  // 30분 단위 오디오 바이너리 물리 슬라이싱 헬퍼 함수
+  const sliceAudioFile = (file: File, duration: number, chunkDurationSec = 1800): Blob[] => {
+    const blobs: Blob[] = [];
+    const totalSize = file.size;
+    const numChunks = Math.ceil(duration / chunkDurationSec);
+    const chunkSize = Math.floor(totalSize / numChunks);
+
+    for (let i = 0; i < numChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, totalSize);
+      const slice = file.slice(start, end, file.type);
+      blobs.push(slice);
+    }
+    return blobs;
+  };
 
   // 고객 관리 연동 관련 상태 변수
   const [clients, setClients] = useState<any[]>([]);
@@ -160,7 +177,10 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
 
     setIsAnalyzing(true);
     setErrorMessage(null);
+    setChunkStatuses({});
     if (onAnalysisStarted) onAnalysisStarted();
+
+    let sessionSubscription: any = null;
 
     try {
       const { data: authData } = await supabase.auth.getSession();
@@ -179,7 +199,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
       const targetDate = therapyDate || (manualDateTime ? manualDateTime.date : formatKST(new Date(), 'yyyy-MM-dd'));
       const targetTime = therapyTime || (manualDateTime ? manualDateTime.time : formatKST(new Date(), 'HH:mm'));
 
-      // 1. Sessions DB Insert (고객정보 연동하여 삽입)
+      // 1. Sessions DB Insert (부모 세션 생성)
       const { data: sessionData, error: sessionErr } = await supabase
         .from('sessions')
         .insert({
@@ -203,49 +223,100 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
 
       const sessionId = sessionData.id;
 
-      // 2. Storage Upload
+      // 2. 30분 단위 오디오 청킹 처리
+      const chunks = sliceAudioFile(selectedFile, duration, 1800);
       const fileExt = selectedFile.name.split('.').pop()?.toLowerCase() || 'wav';
-      const storagePath = `${session.user.id}/${selectedClient.id}/${sessionId}_processed_audio.${fileExt}`;
 
-      const { error: uploadErr } = await supabase.storage
-        .from('audio-records')
-        .upload(storagePath, selectedFile, {
-          contentType: selectedFile.type || 'application/octet-stream',
-          cacheControl: '3600',
-          upsert: true,
-        });
+      console.log(`[Audio Slicing] Sliced into ${chunks.length} chunks.`);
 
-      if (uploadErr) {
-        await supabase.from('sessions').delete().eq('id', sessionId);
-        throw new Error('음성 파일 업로드 실패: ' + uploadErr.message);
-      }
-
-      // 3. Trigger Analysis (FastAPI local or Edge Function)
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      let resultData: any;
-
-      if (isLocalhost) {
-        const res = await fetch('/api/functions/analyze', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
+      // 3. Realtime 구독 설정 (chunks 테이블 진행 상태 모니터링)
+      sessionSubscription = supabase
+        .channel(`session_chunks_${sessionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'chunks',
+            filter: `session_id=eq.${sessionId}`,
           },
-          body: JSON.stringify({ session_id: sessionId, duration: duration }),
+          (payload: any) => {
+            const updatedChunk = payload.new;
+            if (updatedChunk) {
+              setChunkStatuses((prev) => ({
+                ...prev,
+                [updatedChunk.segment_index]: updatedChunk.status,
+              }));
+            }
+          }
+        )
+        .subscribe();
+
+      // 4. 각 청크별 업로드 및 process-chunk 비동기 호출 실행
+      const uploadPromises = chunks.map(async (chunkBlob, index) => {
+        setChunkStatuses((prev) => ({ ...prev, [index]: 'uploading' }));
+        const storagePath = `${session.user.id}/${sessionId}_chunk_${index}.${fileExt}`;
+
+        // Storage 업로드
+        const { error: uploadErr } = await supabase.storage
+          .from('audio-records')
+          .upload(storagePath, chunkBlob, {
+            contentType: selectedFile.type || 'application/octet-stream',
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (uploadErr) {
+          setChunkStatuses((prev) => ({ ...prev, [index]: 'failed' }));
+          throw new Error(`청크 ${index} 업로드 실패: ${uploadErr.message}`);
+        }
+
+        // Public URL 가져오기
+        const { data: urlData } = supabase.storage
+          .from('audio-records')
+          .getPublicUrl(storagePath);
+
+        const publicUrl = urlData?.publicUrl;
+        if (!publicUrl) {
+          throw new Error(`청크 ${index} Public URL 획득 실패`);
+        }
+
+        // DB chunks에 등록
+        const { data: dbChunk, error: chunkInsertErr } = await supabase
+          .from('chunks')
+          .insert({
+            session_id: sessionId,
+            segment_index: index,
+            file_path: publicUrl,
+            status: 'uploaded',
+          })
+          .select()
+          .single();
+
+        if (chunkInsertErr || !dbChunk) {
+          throw new Error(`청크 ${index} DB 등록 실패: ${chunkInsertErr?.message}`);
+        }
+
+        setChunkStatuses((prev) => ({ ...prev, [index]: 'uploaded' }));
+
+        // process-chunk Edge Function 트리거
+        const { error: invokeErr } = await supabase.functions.invoke('process-chunk', {
+          body: { chunk_id: dbChunk.id, file_path: publicUrl },
         });
 
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error('AI 분석 요청 실패: ' + errText);
+        if (invokeErr) {
+          throw new Error(`청크 ${index} Edge Function 호출 실패: ${invokeErr.message}`);
         }
-        resultData = await res.json();
-      } else {
-        const { data, error } = await supabase.functions.invoke('analyze', {
-          body: { session_id: sessionId, duration: duration },
-        });
-        if (error) throw error;
-        resultData = data;
-      }
+      });
+
+      // 모든 업로드 및 트리거 대기
+      await Promise.all(uploadPromises);
+
+      // 세션 상태를 'processing'으로 업데이트
+      await supabase
+        .from('sessions')
+        .update({ status: 'processing' })
+        .eq('id', sessionId);
 
       // If tied to appointment, auto-update appointment status to COMPLETED
       if (appointmentId) {
@@ -255,31 +326,73 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
           .eq('id', appointmentId);
       }
 
-      // Fetch completed result record
-      const { data: finalResult } = await supabase
-        .from('results')
-        .select('*')
-        .eq('session_id', sessionId)
-        .single();
+      // 5. 모든 청크 분석 결과가 완료될 때까지 대기 (폴링 방식으로 수신 체크)
+      let allCompleted = false;
+      let finalResultData: any = null;
+      let retryCount = 0;
+      const maxRetries = 120; // 최대 10분 대기 (5초 간격)
 
-      if (onAnalysisCompleted && finalResult) {
-        onAnalysisCompleted({
-          session_id: sessionId,
-          appointment_id: appointmentId,
-          client_id: selectedClient.id,
-          client_name: selectedClient.name,
-          chart_number: selectedClient.chart_number || '',
-          raw_transcript: finalResult.raw_transcript,
-          refined_transcript: finalResult.refined_transcript,
-          guide_content: finalResult.guide_content,
-          chart_data: finalResult.chart_data,
-        });
+      while (!allCompleted && retryCount < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        retryCount++;
+
+        // 세션 완료 여부 확인
+        const { data: currentSession } = await supabase
+          .from('sessions')
+          .select('status')
+          .eq('id', sessionId)
+          .single();
+
+        if (currentSession?.status === 'completed') {
+          allCompleted = true;
+          // 최종 결과 가져오기
+          const { data: finalResult } = await supabase
+            .from('results')
+            .select('*')
+            .eq('session_id', sessionId);
+
+          if (finalResult && finalResult.length > 0) {
+            // 여러 청크의 전사본과 차트 데이터를 종합 병합
+            const rawTranscripts = finalResult.map(r => r.raw_transcript || '').join('\n\n');
+            const refinedTranscripts = finalResult.map(r => r.refined_transcript || '').join('\n\n');
+            const guides = finalResult.map(r => r.guide_content || '').join('\n\n');
+            
+            // SOAP 차트는 첫 번째 청크의 구조를 기반으로 병합 또는 수집
+            const mergedChart = finalResult[0].chart_data || {};
+
+            finalResultData = {
+              session_id: sessionId,
+              appointment_id: appointmentId,
+              client_id: selectedClient.id,
+              client_name: selectedClient.name,
+              chart_number: selectedClient.chart_number || '',
+              raw_transcript: rawTranscripts,
+              refined_transcript: refinedTranscripts,
+              guide_content: guides,
+              chart_data: mergedChart,
+            };
+          }
+        } else if (currentSession?.status === 'failed') {
+          throw new Error('AI 분석 처리 중 오류가 발생하여 실패 처리되었습니다.');
+        }
       }
+
+      if (!allCompleted || !finalResultData) {
+        throw new Error('AI 분석 처리 대기 시간을 초과했습니다. 잠시 후 히스토리에서 결과를 확인해 주세요.');
+      }
+
+      if (onAnalysisCompleted) {
+        onAnalysisCompleted(finalResultData);
+      }
+
     } catch (err: any) {
       console.error('Audio analysis error:', err);
       setErrorMessage(err.message || 'AI 분석 처리 중 에러가 발생했습니다.');
     } finally {
       setIsAnalyzing(false);
+      if (sessionSubscription) {
+        supabase.removeChannel(sessionSubscription);
+      }
     }
   };
 
@@ -509,6 +622,47 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
             </>
           )}
         </button>
+
+        {Object.keys(chunkStatuses).length > 0 && (
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2 mt-4 animate-in fade-in duration-300">
+            <h4 className="text-xs font-black text-gray-700 flex items-center gap-1.5">
+              <span>📦</span>
+              <span>세션 청크 분석 진행 현황</span>
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {Object.entries(chunkStatuses).map(([index, status]) => {
+                let statusColor = 'bg-gray-100 text-gray-500';
+                let statusLabel = '대기 중';
+                if (status === 'uploading') {
+                  statusColor = 'bg-blue-50 text-blue-600 border border-blue-200 animate-pulse';
+                  statusLabel = '업로드 중';
+                } else if (status === 'uploaded') {
+                  statusColor = 'bg-blue-100 text-blue-800 border border-blue-200';
+                  statusLabel = '업로드 완료';
+                } else if (status === 'queued') {
+                  statusColor = 'bg-amber-50 text-amber-600 border border-amber-200';
+                  statusLabel = 'STT 대기';
+                } else if (status === 'processing') {
+                  statusColor = 'bg-amber-100 text-amber-800 border border-amber-300';
+                  statusLabel = 'AI 분석 중';
+                } else if (status === 'done') {
+                  statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-300';
+                  statusLabel = '완료';
+                } else if (status === 'failed') {
+                  statusColor = 'bg-rose-100 text-rose-800 border border-rose-300';
+                  statusLabel = '실패';
+                }
+
+                return (
+                  <div key={index} className={`flex items-center justify-between p-2 rounded-lg text-[10px] font-bold ${statusColor}`}>
+                    <span>#{Number(index) + 1} 청크</span>
+                    <span>{statusLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </form>
 
       {/* Recording Guide Modal */}

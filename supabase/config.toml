@@ -428,3 +428,14 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/payment-webhook/index.ts"
 
+[functions.process-chunk]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-chunk/index.ts"
+
+[functions.poll-jobs]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/poll-jobs/index.ts"
+
+
