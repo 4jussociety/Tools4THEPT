@@ -522,46 +522,6 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
           )}
         </button>
 
-        {Object.keys(chunkStatuses).length > 0 && (
-          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2 mt-4 animate-in fade-in duration-300">
-            <h4 className="text-xs font-black text-gray-700 flex items-center gap-1.5">
-              <span>📦</span>
-              <span>세션 청크 분석 진행 현황</span>
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {Object.entries(chunkStatuses).map(([index, status]) => {
-                let statusColor = 'bg-gray-100 text-gray-500';
-                let statusLabel = '대기 중';
-                if (status === 'uploading') {
-                  statusColor = 'bg-blue-50 text-blue-600 border border-blue-200 animate-pulse';
-                  statusLabel = '업로드 중';
-                } else if (status === 'uploaded') {
-                  statusColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-                  statusLabel = '업로드 완료';
-                } else if (status === 'queued') {
-                  statusColor = 'bg-amber-50 text-amber-600 border border-amber-200';
-                  statusLabel = 'STT 대기';
-                } else if (status === 'processing') {
-                  statusColor = 'bg-amber-100 text-amber-800 border border-amber-300';
-                  statusLabel = 'AI 분석 중';
-                } else if (status === 'done') {
-                  statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-300';
-                  statusLabel = '완료';
-                } else if (status === 'failed') {
-                  statusColor = 'bg-rose-100 text-rose-800 border border-rose-300';
-                  statusLabel = '실패';
-                }
-
-                return (
-                  <div key={index} className={`flex items-center justify-between p-2 rounded-lg text-[10px] font-bold ${statusColor}`}>
-                    <span>#{Number(index) + 1} 청크</span>
-                    <span>{statusLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </form>
 
       {/* Recording Guide Modal */}
