@@ -18,6 +18,7 @@ ALTER TABLE public.beds DROP COLUMN IF EXISTS patient_memo;
 -- 2-1. therapist_id 및 patient_id 필수 제약조건 제거 (400 에러 방지)
 ALTER TABLE public.appointments ALTER COLUMN therapist_id DROP NOT NULL;
 ALTER TABLE public.appointments ALTER COLUMN patient_id DROP NOT NULL;
+ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS appointments_patient_id_fkey;
 
 -- 2-2. 예약 생성/수정 시 instructor_id -> therapist_id, client_id -> patient_id 자동 동기화 트리거 함수 생성
 CREATE OR REPLACE FUNCTION public.sync_appointment_legacy_fields()
