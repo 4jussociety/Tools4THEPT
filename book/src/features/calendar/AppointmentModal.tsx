@@ -519,22 +519,13 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                             {...register('instructor_id')}
                                             className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold cursor-pointer transition-all text-xs h-[42px]"
                                         >
-                                            {/* 1. 로그인 본인이 있을 경우 최상단 고정 노출 및 기본선택 */}
-                                            {myProfile && (
+                                            {myProfile ? (
                                                 <option value={myProfile.id}>
-                                                    ⭐ {myProfile.full_name || myProfile.name || '본인'} (나)
+                                                    {myProfile.full_name || myProfile.name || '본인 강사'}
                                                 </option>
+                                            ) : (
+                                                <option value="">선택</option>
                                             )}
-                                            
-                                            {/* 2. 소속 센터의 다른 강사들 나열 (본인은 제외) */}
-                                            {profiles
-                                                ?.filter(p => p.id !== myProfile?.id)
-                                                .map(p => (
-                                                    <option key={p.id} value={p.id}>
-                                                        {p.full_name || p.name}
-                                                    </option>
-                                                ))
-                                            }
                                         </select>
                                     </div>
 
