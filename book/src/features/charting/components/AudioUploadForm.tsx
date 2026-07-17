@@ -273,30 +273,43 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
         {/* 고객 선택 영역 */}
         <div>
           {selectedClient ? (
-            <div className="bg-indigo-50/70 border border-indigo-200/60 rounded-xl p-3 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                  <User size={16} />
+            <>
+              <div className="bg-indigo-50/70 border border-indigo-200/60 rounded-xl p-3 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                    <User size={16} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-gray-900">{selectedClient.name} 고객님</p>
+                    <p className="text-[10px] font-bold text-gray-500">
+                      {selectedClient.phone || '연락처 없음'} {selectedClient.chart_number ? `· 차트번호: ${selectedClient.chart_number}` : ''}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-black text-gray-900">{selectedClient.name} 고객님</p>
-                  <p className="text-[10px] font-bold text-gray-500">
-                    {selectedClient.phone || '연락처 없음'} {selectedClient.chart_number ? `· 차트번호: ${selectedClient.chart_number}` : ''}
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedClient(null);
+                    setErrorMessage(null);
+                  }}
+                  className="text-gray-400 hover:text-red-500 p-1.5 transition-colors cursor-pointer"
+                  title="고객 변경"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedClient(null);
-                  setErrorMessage(null);
-                }}
-                className="text-gray-400 hover:text-red-500 p-1.5 transition-colors cursor-pointer"
-                title="고객 변경"
-              >
-                <X size={16} />
-              </button>
-            </div>
+              {therapyDate && (
+                <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 flex items-center justify-between text-xs text-indigo-900 font-medium mt-2">
+                  <div className="flex items-center gap-2">
+                    <span>📅</span>
+                    <span>연동된 예약 일시</span>
+                  </div>
+                  <span className="font-bold bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg">
+                    {therapyDate} {therapyTime || ''}
+                  </span>
+                </div>
+              )}
+            </>
           ) : (
             <div className="relative" ref={dropdownRef}>
               <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1">
