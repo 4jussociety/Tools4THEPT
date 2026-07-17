@@ -25,10 +25,10 @@ export default function ChartingPage() {
           </span>
           <h1 className="text-xl md:text-2xl font-black flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-indigo-400" />
-            <span>AI 음성 차팅 및 도수치료 시행기록</span>
+            <span>AI 음성 차팅 및 도수재활세션 기록</span>
           </h1>
           <p className="text-xs text-gray-400 mt-1">
-            녹음 및 수기 메모 분석으로 SOAP 차트와 1화면 콤팩트 도수치료 시행기록지를 즉시 추출합니다.
+            녹음 및 수기 메모 분석으로 SOAP 차트와 1화면 콤팩트 도수재활세션 기록지를 즉시 추출합니다.
           </p>
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function ChartingPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                도수치료 시행기록지
+                도수재활세션 기록지
               </button>
               <button
                 onClick={() => setActiveTab('soap')}
@@ -93,7 +93,7 @@ export default function ChartingPage() {
                 <div className="text-center py-12 text-gray-400 space-y-2">
                   <Sparkles className="w-8 h-8 mx-auto text-indigo-400 animate-pulse" />
                   <p className="text-xs font-semibold text-gray-600">왼쪽 폼에서 음성 파일과 추가 메모를 등록하여 AI 분석을 실행하세요.</p>
-                  <p className="text-[11px] text-gray-400">분석이 완성되면 도수치료 시행기록지와 SOAP 임상 결과가 여기에 표시됩니다.</p>
+                  <p className="text-[11px] text-gray-400">분석이 완성되면 도수재활세션 기록지와 SOAP 임상 결과가 여기에 표시됩니다.</p>
                 </div>
               )}
 

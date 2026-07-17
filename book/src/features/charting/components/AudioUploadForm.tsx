@@ -291,7 +291,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
             <Sparkles className="w-5 h-5 text-indigo-600" />
             <span>AI 음성 차팅 분석</span>
           </h3>
-          <p className="text-xs text-gray-500">고객 음성 녹음과 수기 메모로 SOAP 및 도수치료 기록지를 자동 추출합니다.</p>
+          <p className="text-xs text-gray-500">고객 음성 녹음과 수기 메모로 SOAP 및 도수재활세션 기록지를 자동 추출합니다.</p>
         </div>
         <button
           type="button"
@@ -379,7 +379,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
                       const timeStr = app.start_time.split('T')[1].substring(0, 5);
                       return (
                         <option key={app.id} value={app.id}>
-                          {dateStr} {timeStr} ({app.note ? `${app.note.substring(0, 10)}...` : '치료 예약'})
+                          {dateStr} {timeStr} ({app.note ? `${app.note.substring(0, 10)}...` : '재활세션 예약'})
                         </option>
                       );
                     })}
@@ -437,14 +437,14 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">치료 직군 선택</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">재활 직군 선택</label>
           <select
             value={profession}
             onChange={(e) => setProfession(e.target.value)}
             className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer font-bold"
           >
-            <option value="pt">물리치료 (PT)</option>
-            <option value="ot">작업치료 (OT)</option>
+            <option value="pt">물리재활 (PT)</option>
+            <option value="ot">작업재활 (OT)</option>
             <option value="st">언어재활 (ST)</option>
             <option value="rehab">기타 재활</option>
           </select>
@@ -487,7 +487,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
             rows={3}
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="수기로 작성한 치료내용(기법, 부위, VAS 등)을 기재하시면 AI 추출 정밀도가 대폭 향상됩니다..."
+            placeholder="수기로 작성한 세션내용(기법, 부위, VAS 등)을 기재하시면 AI 추출 정밀도가 대폭 향상됩니다..."
             className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
@@ -516,7 +516,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">📋 운동센터 도수치료 실전 문진 가이드</h3>
+              <h3 className="text-base font-bold text-gray-900">📋 운동센터 도수재활세션 실전 상담 가이드</h3>
               <button
                 onClick={() => setShowRecordingGuide(false)}
                 className="text-gray-400 hover:text-gray-600 text-lg font-bold"
@@ -542,7 +542,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
                   <li><strong>6. 일중 변동</strong>: "아침에 뻣뻣한가요, 저녁에 힘드신가요?"</li>
                   <li><strong>7. 병력 & 수면</strong>: "수술 이력이나 수면 시간은 어떠신가요?"</li>
                   <li><strong>8. 라이프스타일</strong>: "평소 하시는 일과 주로 취하는 자세는?"</li>
-                  <li><strong>9. 치료 목적</strong>: "오늘 치료로 이루고 싶은 구체적 목표는?"</li>
+                  <li><strong>9. 재활세션 목적</strong>: "오늘 재활세션으로 이루고 싶은 구체적 목표는?"</li>
                 </ul>
               </div>
             </div>

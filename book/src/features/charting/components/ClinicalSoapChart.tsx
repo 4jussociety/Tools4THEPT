@@ -46,7 +46,7 @@ export const ClinicalSoapChart: React.FC<ClinicalSoapChartProps> = ({
         {/* A: Assessment */}
         {renderSectionBox('A. 임상 평가 및 진단 (Assessment)', <Stethoscope className="w-4 h-4 text-amber-600" />, cr.assessment)}
         {/* P: Plan */}
-        {renderSectionBox('P. 치료 및 향후 계획 (Plan)', <ClipboardList className="w-4 h-4 text-purple-600" />, cr.plan)}
+        {renderSectionBox('P. 재활세션 및 향후 계획 (Plan)', <ClipboardList className="w-4 h-4 text-purple-600" />, cr.plan)}
       </div>
 
       {/* Rapport Data */}
@@ -72,7 +72,7 @@ export const ClinicalSoapChart: React.FC<ClinicalSoapChartProps> = ({
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
           <h4 className="font-bold text-gray-900 text-xs flex items-center gap-1.5 border-b pb-2">
             <Dumbbell className="w-4 h-4 text-indigo-600" />
-            <span>고객 맞춤형 치료 가이드</span>
+            <span>고객 맞춤형 세션 가이드</span>
           </h4>
           <div className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-3 rounded-lg">
             {guideContent}

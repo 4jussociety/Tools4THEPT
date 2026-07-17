@@ -165,7 +165,7 @@ export default function WeekView() {
         ? rawProfiles
         : [{
             id: profile?.id || user?.id || 'default-instructor',
-            full_name: profile?.full_name || profile?.name || user?.email?.split('@')[0] || '담당 치료사',
+            full_name: profile?.full_name || profile?.name || user?.email?.split('@')[0] || '담당 강사',
             email: profile?.email || user?.email || '',
             role: 'THERAPIST'
         } as any]
@@ -1115,7 +1115,7 @@ export default function WeekView() {
                                 )}
                                 {selectedAppointment.event_type === 'APPOINTMENT' && selectedAppointment.client && (
                                     <div className="flex flex-col gap-1 text-sm pt-2 border-t border-gray-100">
-                                        <span className="text-gray-400 font-bold text-xs">고객 치료 히스토리 타임라인</span>
+                                        <span className="text-gray-400 font-bold text-xs">고객 세션 히스토리 타임라인</span>
                                         <div className="bg-amber-50 rounded-lg p-3 text-xs text-gray-700 max-h-[140px] overflow-y-auto whitespace-pre-wrap border border-amber-100 scrollbar-thin scrollbar-thumb-amber-200 space-y-2.5">
                                             <div className="text-[9px] text-amber-500 font-bold mb-1 sticky top-0 bg-amber-50 pb-1 border-b border-amber-100">통합 이력 (최신순)</div>
                                             {mergedHistory.map(item => (

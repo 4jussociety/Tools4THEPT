@@ -143,7 +143,7 @@ export function PortalPage() {
 
                     <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm font-semibold mb-8 text-slate-600">
                         <User size={16} className="text-blue-500" />
-                        <span>{userEmail} 치료사님 환영합니다!</span>
+                        <span>{userEmail} 강사님 환영합니다!</span>
                     </div>
 
                     <h2 className="text-lg md:text-xl font-bold text-slate-600 mb-6 text-center">
@@ -151,7 +151,7 @@ export function PortalPage() {
                     </h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-8">
-                        {/* 서비스 카드 1: 물리치료실 상황판 */}
+                        {/* 서비스 카드 1: 재활/레슨실 상황판 */}
                         <button
                             onClick={handleNavigateDashboard}
                             className="flex flex-col text-left p-6 bg-white hover:bg-blue-50/30 border border-slate-200 hover:border-blue-500/50 rounded-2xl transition-all duration-300 group hover:-translate-y-1 shadow-md hover:shadow-blue-500/10 cursor-pointer"
@@ -159,9 +159,9 @@ export function PortalPage() {
                             <div className="w-12 h-12 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                 <LayoutDashboard size={24} />
                             </div>
-                            <h3 className="text-lg font-black text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">물리치료실 상황판</h3>
+                            <h3 className="text-lg font-black text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">재활/레슨실 상황판</h3>
                             <p className="text-xs text-slate-500 leading-relaxed">
-                                실시간 베드 현황 모니터링, 치료 관리 및 구역별 배정 상태를 직관적인 도면 레이아웃으로 제어합니다.
+                                실시간 베드 현황 모니터링, 재활세션 관리 및 구역별 배정 상태를 직관적인 도면 레이아웃으로 제어합니다.
                             </p>
                         </button>
 
@@ -175,7 +175,7 @@ export function PortalPage() {
                             </div>
                             <h3 className="text-lg font-black text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors">스케줄 & AI 임상 차팅</h3>
                             <p className="text-xs text-slate-500 leading-relaxed">
-                                고객과의 대화 음성을 인식(STT)하여 SOAP 임상 노트 및 도수치료 시행 기록지를 1화면에서 자동 생성합니다.
+                                고객과의 대화 음성을 인식(STT)하여 SOAP 임상 노트 및 도수재활세션 기록지를 1화면에서 자동 생성합니다.
                             </p>
                         </button>
                     </div>
@@ -336,8 +336,8 @@ export function PortalPage() {
                     <div className="w-full mt-6 p-4 bg-blue-50/70 border border-blue-100 rounded-2xl flex items-start gap-2.5">
                         <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                         <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
-                            <strong className="font-bold block mb-0.5 text-blue-900">치료사 스태프 접속 안내</strong>
-                            스태프 분들은 원장님이 공유해주신 <strong>스태프 전용 딥링크</strong>를 클릭하시면 로그인 없이 바로 들어오실 수 있습니다.
+                            <strong className="font-bold block mb-0.5 text-blue-900">강사 스태프 접속 안내</strong>
+                            강사/스태프 분들은 원장님이 공유해주신 <strong>스태프 전용 딥링크</strong>를 클릭하시면 로그인 없이 바로 들어오실 수 있습니다.
                         </p>
                     </div>
                 </div>

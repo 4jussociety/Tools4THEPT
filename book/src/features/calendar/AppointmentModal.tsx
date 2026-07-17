@@ -756,7 +756,7 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2 text-xs"
                             >
                               <Sparkles className="w-4 h-4 text-amber-300" />
-                              <span>🎙️ AI 음성 차팅 및 도수치료 기록 작성하기</span>
+                              <span>🎙️ AI 음성 및 도수재활세션 기록 작성하기</span>
                             </button>
                           </div>
                         )}

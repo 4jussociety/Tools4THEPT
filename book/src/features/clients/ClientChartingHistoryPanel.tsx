@@ -100,10 +100,10 @@ export default function ClientChartingHistoryPanel({ clientId }: Props) {
             {/* 상세 펼침 영역 */}
             {isExpanded && result && (
               <div className="pt-2 border-t border-dashed border-slate-100 space-y-3.5 animate-in slide-in-from-top-1 duration-200">
-                {/* 1. 도수치료 시행 기록 (Manual Therapy Record) */}
+                {/* 1. 도수재활세션 시행 기록 (Manual Therapy Record) */}
                 {mtRecord.techniques?.selected?.length > 0 && (
                   <div className="bg-indigo-50/30 rounded-lg p-3 border border-indigo-100/50 space-y-2">
-                    <h5 className="text-[11px] font-black text-indigo-900 flex items-center gap-1">💆‍♂️ 도수치료 시행 기록</h5>
+                    <h5 className="text-[11px] font-black text-indigo-900 flex items-center gap-1">💆‍♂️ 도수재활세션 시행 기록</h5>
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
                       <div>
                         <span className="text-gray-400 block font-bold">진단명/부위</span>
@@ -111,7 +111,7 @@ export default function ClientChartingHistoryPanel({ clientId }: Props) {
                       </div>
                       {mtRecord.cumulative_count !== undefined && (
                         <div>
-                          <span className="text-gray-400 block font-bold">누적 치료 횟수</span>
+                          <span className="text-gray-400 block font-bold">누적 세션 횟수</span>
                           <span className="text-gray-800 font-bold">{mtRecord.cumulative_count}회차</span>
                         </div>
                       )}
@@ -127,23 +127,23 @@ export default function ClientChartingHistoryPanel({ clientId }: Props) {
                       </div>
                       {mtRecord.treatment_regions?.length > 0 && (
                         <div className="col-span-2">
-                          <span className="text-gray-400 block font-bold">치료 부위</span>
+                          <span className="text-gray-400 block font-bold">재활 부위</span>
                           <span className="text-gray-800 font-bold">{mtRecord.treatment_regions.join(', ')}</span>
                         </div>
                       )}
                       {mtRecord.evaluation && (
                         <div className="col-span-2 grid grid-cols-2 gap-2 bg-white/70 p-2 rounded border border-indigo-100/20 mt-1">
                           <div>
-                            <span className="text-gray-400 block font-bold">치료 전 VAS</span>
+                            <span className="text-gray-400 block font-bold">세션 전 VAS</span>
                             <span className="text-amber-600 font-black text-xs">{mtRecord.evaluation.pre_treatment?.pain_scale ?? '-'} / 10</span>
                           </div>
                           <div>
-                            <span className="text-gray-400 block font-bold">치료 후 VAS</span>
+                            <span className="text-gray-400 block font-bold">세션 후 VAS</span>
                             <span className="text-emerald-600 font-black text-xs">{mtRecord.evaluation.post_treatment?.pain_scale ?? '-'} / 10</span>
                           </div>
                           {mtRecord.evaluation.post_treatment?.client_reaction && (
                             <div className="col-span-2">
-                              <span className="text-gray-400 block font-bold">치료 후 환자 반응</span>
+                              <span className="text-gray-400 block font-bold">재활세션 후 고객 반응</span>
                               <span className="text-gray-700 font-medium">{mtRecord.evaluation.post_treatment.client_reaction}</span>
                             </div>
                           )}

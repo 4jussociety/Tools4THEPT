@@ -46,7 +46,7 @@ export const ChartingModal: React.FC<ChartingModalProps> = ({
           <div>
             <h2 className="text-base font-bold flex items-center gap-2">
               <Activity className="w-5 h-5 text-indigo-400" />
-              <span>AI 음성 차팅 & 도수치료 시행기록 연동</span>
+              <span>AI 음성 & 도수재활세션 기록 연동</span>
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
               고객: <span className="text-white font-semibold">{clientName || '미선택'}</span> {chartNumber && `(차트: ${chartNumber})`}
@@ -84,7 +84,7 @@ export const ChartingModal: React.FC<ChartingModalProps> = ({
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>2. 도수치료 시행기록지</span>
+            <span>2. 도수재활세션 기록지</span>
           </button>
 
           <button

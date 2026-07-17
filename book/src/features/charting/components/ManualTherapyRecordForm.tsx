@@ -174,7 +174,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
 
       setSaveStatus({
         type: 'success',
-        message: '도수치료 시행기록지가 성공적으로 저장되었습니다.',
+        message: '도수재활세션 기록지가 성공적으로 저장되었습니다.',
       });
 
       if (onSaved) {
@@ -195,8 +195,8 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
     <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm text-gray-800 text-xs font-sans max-w-full">
       {/* Header */}
       <div className="text-center border-b-2 border-gray-900 pb-1 mb-3">
-        <h2 className="text-base font-bold text-gray-900 tracking-wide">도수치료 시행기록지</h2>
-        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Manual Therapy Execution Record</p>
+        <h2 className="text-base font-bold text-gray-900 tracking-wide">도수재활세션 기록지</h2>
+        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Manual Rehab Session Record</p>
       </div>
 
         {/* 1. 고객 정보 (1줄 6열 정렬) */}
@@ -223,13 +223,13 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
           </div>
         </div>
 
-        {/* 2. 도수치료 시행 및 횟수 */}
+        {/* 2. 도수재활세션 시행 및 횟수 */}
         <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">2. 도수치료 시행 및 횟수</h3>
+          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">2. 도수재활세션 시행 및 횟수</h3>
           <div className="grid grid-cols-4 border-t border-l border-gray-300">
             <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">시행자 성명</div>
             <div className="p-1 border-r border-b border-gray-300">
-              <input type="text" value={therapistName} onChange={(e) => setTherapistName(e.target.value)} placeholder="치료사 성명" className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
+              <input type="text" value={therapistName} onChange={(e) => setTherapistName(e.target.value)} placeholder="강사 성명" className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
             </div>
             <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">연도 누적 횟수</div>
             <div className="p-1 border-r border-b border-gray-300 flex items-center gap-1">
@@ -285,13 +285,13 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
           </div>
         </div>
 
-        {/* 5. 치료효과 평가 */}
+        {/* 5. 세션효과 평가 */}
         <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">5. 치료효과 평가 (치료 전 / 치료 후 비교)</h3>
+          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">5. 세션효과 평가 (세션 전 / 세션 후 비교)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Pre */}
             <div className="border border-indigo-200 rounded p-2 bg-indigo-50/30">
-              <h4 className="font-bold text-indigo-900 border-b border-indigo-200 pb-0.5 mb-2">치료 전 (Pre-Treatment)</h4>
+              <h4 className="font-bold text-indigo-900 border-b border-indigo-200 pb-0.5 mb-2">세션 전 (Pre-Session)</h4>
               <div className="mb-2">
                 <div className="flex justify-between text-xs font-medium mb-1">
                   <span>통증 정도 (VAS Score: 0~10)</span>
@@ -301,7 +301,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
               </div>
               <div className="mb-2">
                 <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">관절가동범위 및 기능 상태</label>
-                <textarea rows={2} value={preRom} onChange={(e) => setPreRom(e.target.value)} placeholder="치료 전 ROM 제한 상태나 기능 검사 수치 입력" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-indigo-500 text-xs" />
+                <textarea rows={2} value={preRom} onChange={(e) => setPreRom(e.target.value)} placeholder="세션 전 ROM 제한 상태나 기능 검사 수치 입력" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-indigo-500 text-xs" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">주요 증상 및 제한사항</label>
@@ -311,7 +311,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
 
             {/* Post */}
             <div className="border border-emerald-200 rounded p-2 bg-emerald-50/30">
-              <h4 className="font-bold text-emerald-900 border-b border-emerald-200 pb-0.5 mb-2">치료 후 (Post-Treatment)</h4>
+              <h4 className="font-bold text-emerald-900 border-b border-emerald-200 pb-0.5 mb-2">세션 후 (Post-Session)</h4>
               <div className="mb-2">
                 <div className="flex justify-between text-xs font-medium mb-1">
                   <span>통증 정도 (VAS Score: 0~10)</span>
@@ -321,19 +321,19 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
               </div>
               <div className="mb-2">
                 <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">관절가동범위 및 기능 변화</label>
-                <textarea rows={2} value={postRom} onChange={(e) => setPostRom(e.target.value)} placeholder="치료 후 즉각적인 ROM 증가 수치 및 기능 호전 변화" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-emerald-500 text-xs" />
+                <textarea rows={2} value={postRom} onChange={(e) => setPostRom(e.target.value)} placeholder="세션 후 즉각적인 ROM 증가 수치 및 기능 호전 변화" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-emerald-500 text-xs" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">고객 주관적 반응 및 호전도</label>
-                <textarea rows={2} value={postReaction} onChange={(e) => setPostReaction(e.target.value)} placeholder="치료 후 고객이 직접 표현한 피드백 및 상태" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-emerald-500 text-xs" />
+                <textarea rows={2} value={postReaction} onChange={(e) => setPostReaction(e.target.value)} placeholder="세션 후 고객이 직접 표현한 피드백 및 상태" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-emerald-500 text-xs" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* 6. 종합 치료효과 평가 */}
+        {/* 6. 종합 세션효과 평가 */}
         <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">6. 종합 치료효과 평가</h3>
+          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">6. 종합 세션효과 평가</h3>
           <div className="flex flex-wrap gap-3 py-1">
             {['현저한 호전', '호전', '변화 없음', '악화', '평가 어려움'].map((rating) => (
               <label key={rating} className="flex items-center gap-1 cursor-pointer text-[11px]">
@@ -353,7 +353,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
             type="text"
             value={overallDetails}
             onChange={(e) => setOverallDetails(e.target.value)}
-            placeholder="종합 평가 소견 및 향후 치료 방향"
+            placeholder="종합 평가 소견 및 향후 세션 방향"
             className="w-full mt-1 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500"
           />
         </div>
@@ -383,7 +383,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
             className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold px-4 py-2 rounded-lg transition shadow-sm disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span>도수치료 기록지 저장하기</span>
+            <span>도수재활세션 기록지 저장하기</span>
           </button>
         </div>
       </div>
