@@ -476,12 +476,28 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Load session details from DB to verify owner
-      const { data: session, error: sessionErr } = await adminClient
-        .from("sessions")
-        .select("*")
-        .eq("id", session_id)
-        .single();
+      // Load session details from DB to verify owner (retry logic included to combat replica/commit lag)
+      let session: any = null;
+      let sessionErr: any = null;
+      const sessionRetries = 3;
+
+      for (let attempt = 0; attempt < sessionRetries; attempt++) {
+        const { data, error } = await adminClient
+          .from("sessions")
+          .select("*")
+          .eq("id", session_id)
+          .single();
+        
+        if (data) {
+          session = data;
+          sessionErr = null;
+          break;
+        }
+        
+        sessionErr = error;
+        console.log(`[Sessions Query] Session ${session_id} not found on attempt ${attempt + 1}. Retrying in 2s...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
 
       if (sessionErr || !session) {
         return new Response(JSON.stringify({ detail: "Session not found" }), {
