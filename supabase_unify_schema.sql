@@ -41,3 +41,19 @@ UPDATE public.appointments
 SET therapist_id = instructor_id,
     patient_id = client_id
 WHERE therapist_id IS NULL OR patient_id IS NULL;
+
+-- =========================================================================
+-- 3. clients 테이블: 고객번호(client_no) 및 수동등록 여부(is_manual_no) 컬럼 추가
+-- =========================================================================
+-- 3-1. client_no 자동 증가용 시퀀스 생성
+CREATE SEQUENCE IF NOT EXISTS public.clients_client_no_seq;
+
+-- 3-2. clients 테이블에 컬럼 생성 및 기본값 적용
+ALTER TABLE public.clients 
+ADD COLUMN IF NOT EXISTS client_no integer DEFAULT nextval('public.clients_client_no_seq'),
+ADD COLUMN IF NOT EXISTS is_manual_no boolean DEFAULT false;
+
+-- 3-3. 기존 데이터 소급 적용
+UPDATE public.clients
+SET client_no = nextval('public.clients_client_no_seq')
+WHERE client_no IS NULL;
