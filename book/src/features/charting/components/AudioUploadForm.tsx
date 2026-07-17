@@ -226,7 +226,20 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
       });
 
       if (invokeErr) {
-        throw new Error('AI 분석 요청 실패: ' + invokeErr.message);
+        console.error('Raw Invoke Error Object:', invokeErr);
+        let detailedError = invokeErr.message;
+        try {
+          if (invokeErr && typeof invokeErr === 'object' && 'context' in invokeErr) {
+            const contextObj = (invokeErr as any).context;
+            if (contextObj && typeof contextObj.text === 'function') {
+              const contextText = await contextObj.text();
+              detailedError += ` [Response Body: ${contextText}]`;
+            }
+          }
+        } catch (readErr) {
+          console.error('Failed to read error context body:', readErr);
+        }
+        throw new Error('AI 분석 요청 실패: ' + detailedError);
       }
 
       // If tied to appointment, auto-update appointment status to COMPLETED
