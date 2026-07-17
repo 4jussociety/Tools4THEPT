@@ -72,10 +72,4 @@ CREATE POLICY "Allow public select from audio-records"
   TO public
   USING (bucket_id = 'audio-records');
 
--- 7. profiles 테이블과 subscriptions 테이블 간의 외래키(FK) 제약조건 복구
-ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_subscription_id_fkey;
-ALTER TABLE public.profiles 
-  ADD CONSTRAINT profiles_subscription_id_fkey 
-  FOREIGN KEY (subscription_id) 
-  REFERENCES public.subscriptions(id) 
-  ON DELETE SET NULL;
+

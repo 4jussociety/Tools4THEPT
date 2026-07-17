@@ -506,7 +506,7 @@ Deno.serve(async (req) => {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         const { data: prof, error: profErr } = await adminClient
           .from("profiles")
-          .select("tier, quota_limit, quota_used, subscription_id, subscriptions(status, current_period_end)")
+          .select("tier, quota_limit, quota_used, subscription_id")
           .eq("id", user.id)
           .single();
 
@@ -519,10 +519,7 @@ Deno.serve(async (req) => {
 
         profile = prof;
         let tier = prof.tier || 'free';
-        let sub: any = prof.subscriptions;
-        if (Array.isArray(sub)) {
-          sub = sub[0];
-        }
+        let sub: any = null; // subscriptions 테이블 미존재로 조인 쿼리 제거 및 null 방어 처리
 
         // Check subscription status and handle grace period dynamically
         if (sub) {
