@@ -516,7 +516,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">📋 RE;MOVE Center 도수치료 실전 문진 가이드</h3>
+              <h3 className="text-base font-bold text-gray-900">📋 운동센터 도수치료 실전 문진 가이드</h3>
               <button
                 onClick={() => setShowRecordingGuide(false)}
                 className="text-gray-400 hover:text-gray-600 text-lg font-bold"
