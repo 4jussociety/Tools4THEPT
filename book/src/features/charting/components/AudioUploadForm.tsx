@@ -6,6 +6,8 @@ import type { SessionResult } from '../types/charting';
 interface AudioUploadFormProps {
   clientId?: string;
   appointmentId?: string;
+  therapyDate?: string;
+  therapyTime?: string;
   onAnalysisStarted?: () => void;
   onAnalysisCompleted?: (result: SessionResult) => void;
 }
@@ -13,6 +15,8 @@ interface AudioUploadFormProps {
 export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   clientId,
   appointmentId,
+  therapyDate,
+  therapyTime,
   onAnalysisStarted,
   onAnalysisCompleted,
 }) => {
@@ -146,6 +150,8 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
           status: 'pending',
           memo: memo,
           duration: Math.ceil(duration),
+          therapy_date: therapyDate || null,
+          therapy_time: therapyTime || null,
         })
         .select()
         .single();

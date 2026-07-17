@@ -57,3 +57,17 @@ ADD COLUMN IF NOT EXISTS is_manual_no boolean DEFAULT false;
 UPDATE public.clients
 SET client_no = nextval('public.clients_client_no_seq')
 WHERE client_no IS NULL;
+
+-- =========================================================================
+-- 4. sessions 테이블: 치료일시(therapy_date, therapy_time) 및 예약 연동(appointment_id) 컬럼 추가
+-- =========================================================================
+ALTER TABLE public.sessions 
+ADD COLUMN IF NOT EXISTS therapy_date DATE,
+ADD COLUMN IF NOT EXISTS therapy_time TIME,
+ADD COLUMN IF NOT EXISTS appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL;
+
+-- 기존 데이터 소급 적용
+UPDATE public.sessions
+SET therapy_date = CAST(created_at AS DATE),
+    therapy_time = CAST(created_at AS TIME)
+WHERE therapy_date IS NULL;

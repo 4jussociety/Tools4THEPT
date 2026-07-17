@@ -19,6 +19,8 @@ import { DraggableAppointmentContent } from './DraggableAppointmentContent'
 import type { Appointment } from '@/types/db'
 
 import { useAuth } from '@/features/auth/AuthContext'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 
 // --- Constants ---
 const { startHour: START_HOUR, endHour: END_HOUR } = getDisplayHourRange()  // 운영시간 설정 연동
@@ -98,6 +100,61 @@ export default function WeekView() {
     useAutoCompleteAppointments(appointments)
     const updateMutation = useUpdateAppointment()
     const { data: clientHistory } = useClientAppointments(selectedAppointment?.client?.id)
+
+    // 1. 선택된 고객의 AI 음성 차팅 세션 목록 조회 훅
+    const { data: clientSessions } = useQuery({
+        queryKey: ['clientSessions', selectedAppointment?.client?.id],
+        queryFn: async () => {
+            if (!selectedAppointment?.client?.id) return [];
+            const { data, error } = await supabase
+                .from('sessions')
+                .select('*')
+                .eq('client_id', selectedAppointment.client.id)
+                .order('created_at', { ascending: false });
+            if (error) return [];
+            return data;
+        },
+        enabled: !!selectedAppointment?.client?.id,
+    });
+
+    // 2. 수기 메모(clientHistory)와 AI 음성 차팅(clientSessions)을 통합 정렬한 타임라인 구성
+    const mergedHistory = (() => {
+        const history: Array<{
+            id: string;
+            time: Date;
+            type: 'NOTE' | 'AUDIO';
+            content: string;
+            sessionId?: string;
+        }> = [];
+
+        if (clientHistory) {
+            clientHistory.filter(app => app.note).forEach(app => {
+                history.push({
+                    id: app.id,
+                    time: new Date(app.start_time),
+                    type: 'NOTE',
+                    content: app.note!
+                });
+            });
+        }
+
+        if (clientSessions) {
+            clientSessions.forEach(session => {
+                const timeStr = session.therapy_date 
+                    ? `${session.therapy_date}T${session.therapy_time || '00:00:00'}`
+                    : session.created_at;
+                history.push({
+                    id: session.id,
+                    time: new Date(timeStr),
+                    type: 'AUDIO',
+                    content: session.memo ? `[음성차팅 메모] ${session.memo}` : '🎙️ AI 음성 차팅 분석 기록',
+                    sessionId: session.id
+                });
+            });
+        }
+
+        return history.sort((a, b) => b.time.getTime() - a.time.getTime());
+    })();
 
     const { data: ads = [] } = useGlobalAds()
     const activeAds = ads
@@ -1056,20 +1113,34 @@ export default function WeekView() {
                                         </div>
                                     </div>
                                 )}
-                                {selectedAppointment.event_type === 'APPOINTMENT' && selectedAppointment.client && clientHistory && (
+                                {selectedAppointment.event_type === 'APPOINTMENT' && selectedAppointment.client && (
                                     <div className="flex flex-col gap-1 text-sm pt-2 border-t border-gray-100">
-                                        <span className="text-gray-400 font-bold text-xs">고객 메모 히스토리</span>
-                                        <div className="bg-amber-50 rounded-lg p-3 text-xs text-gray-700 max-h-[100px] overflow-y-auto whitespace-pre-wrap border border-amber-100 scrollbar-thin scrollbar-thumb-amber-200 space-y-2">
-                                            <div className="text-[9px] text-amber-500 font-bold mb-1 sticky top-0 bg-amber-50 pb-1 border-b border-amber-100">이전 기록</div>
-                                            {clientHistory.filter(app => app.note).map(app => (
-                                                <div key={app.id} className="border-b border-amber-100 last:border-0 pb-1 last:pb-0">
+                                        <span className="text-gray-400 font-bold text-xs">고객 치료 히스토리 타임라인</span>
+                                        <div className="bg-amber-50 rounded-lg p-3 text-xs text-gray-700 max-h-[140px] overflow-y-auto whitespace-pre-wrap border border-amber-100 scrollbar-thin scrollbar-thumb-amber-200 space-y-2.5">
+                                            <div className="text-[9px] text-amber-500 font-bold mb-1 sticky top-0 bg-amber-50 pb-1 border-b border-amber-100">통합 이력 (최신순)</div>
+                                            {mergedHistory.map(item => (
+                                                <div key={item.id} className="border-b border-amber-100/50 last:border-0 pb-1.5 last:pb-0">
                                                     <span className="text-[10px] text-amber-600 font-bold block mb-0.5">
-                                                        [{formatKST(new Date(app.start_time), 'yyyy-MM-dd HH:mm')}]
+                                                        [{formatKST(item.time, 'yyyy-MM-dd HH:mm')}] {item.type === 'AUDIO' ? '🎙️ AI 음성' : '📝 수기메모'}
                                                     </span>
-                                                    {app.note}
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <span className="flex-1 leading-relaxed">{item.content}</span>
+                                                        {item.type === 'AUDIO' && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedAppointment(null);
+                                                                    window.location.href = `/book/charting?client_id=${selectedAppointment.client?.id}`;
+                                                                }}
+                                                                className="text-[9px] text-blue-600 hover:underline shrink-0 font-bold"
+                                                            >
+                                                                이력보기
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
-                                            {clientHistory.filter(app => app.note).length === 0 && (
+                                            {mergedHistory.length === 0 && (
                                                 <div className="text-gray-400 text-center py-2">기록 없음</div>
                                             )}
                                         </div>
@@ -1080,7 +1151,7 @@ export default function WeekView() {
                                         type="button"
                                         onClick={() => {
                                             setSelectedAppointment(null);
-                                            window.location.href = `/book/charting?client_id=${selectedAppointment.client?.id}`;
+                                            window.location.href = `/book/charting?client_id=${selectedAppointment.client?.id}&appointment_id=${selectedAppointment.id}&date=${formatKST(new Date(selectedAppointment.start_time), 'yyyy-MM-dd')}&time=${formatKST(new Date(selectedAppointment.start_time), 'HH:mm')}`;
                                         }}
                                         className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-100 transition-all hover:scale-[1.01] active:scale-[0.99] mt-3"
                                     >

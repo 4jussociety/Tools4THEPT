@@ -19,6 +19,9 @@ async def analyze_audio(
     profession: str = Form("pt"),
     memo: str = Form(None),
     client_id: str = Form(None),
+    therapy_date: str = Form(None),
+    therapy_time: str = Form(None),
+    appointment_id: str = Form(None),
     user_id: str = Depends(get_current_user_id)
 ):
     """
@@ -82,7 +85,10 @@ async def analyze_audio(
         "profession": profession,
         "client_name": file.filename,
         "status": "pending",
-        "memo": memo
+        "memo": memo,
+        "therapy_date": therapy_date or None,
+        "therapy_time": therapy_time or None,
+        "appointment_id": appointment_id or None
     }
     
     try:

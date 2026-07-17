@@ -9,6 +9,9 @@ import type { SessionResult } from './types/charting';
 export default function ChartingPage() {
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client_id') || searchParams.get('clientId') || undefined;
+  const appointmentId = searchParams.get('appointment_id') || undefined;
+  const therapyDate = searchParams.get('date') || undefined;
+  const therapyTime = searchParams.get('time') || undefined;
   const [activeTab, setActiveTab] = useState<'upload' | 'manual-therapy' | 'soap'>('upload');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
 
@@ -36,6 +39,9 @@ export default function ChartingPage() {
         <div className="lg:col-span-5 space-y-4">
           <AudioUploadForm
             clientId={clientId}
+            appointmentId={appointmentId}
+            therapyDate={therapyDate}
+            therapyTime={therapyTime}
             onAnalysisCompleted={(res) => {
               setSessionResult(res);
               setActiveTab('manual-therapy');
