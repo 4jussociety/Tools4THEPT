@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileAudio, FileText, Sparkles, AlertCircle, HelpCircle, Search, User, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { SessionResult } from '../types/charting';
+import { formatKST } from '@/lib/dateUtils';
 
 interface AudioUploadFormProps {
   clientId?: string;
@@ -33,6 +34,41 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 최근 예약 매핑 관련 상태 변수
+  const [recentAppointments, setRecentAppointments] = useState<any[]>([]);
+  const [selectedAppId, setSelectedAppId] = useState<string>('today');
+  const [manualDateTime, setManualDateTime] = useState<{ date: string; time: string } | null>(null);
+
+  // 1-2. 고객 직접 선택 시 최근 예약 이력 5건 실시간 패치
+  useEffect(() => {
+    if (!selectedClient) {
+      setRecentAppointments([]);
+      setSelectedAppId('today');
+      setManualDateTime(null);
+      return;
+    }
+    
+    // 만약 캘린더 연동으로 들어온 경우라면 조회를 스킵합니다.
+    if (therapyDate) return;
+
+    const fetchRecentAppointments = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('id, start_time, note')
+          .eq('client_id', selectedClient.id)
+          .order('start_time', { ascending: false })
+          .limit(5);
+        if (!error && data) {
+          setRecentAppointments(data);
+        }
+      } catch (err) {
+        console.error('최근 예약 목록 조회 실패:', err);
+      }
+    };
+    fetchRecentAppointments();
+  }, [selectedClient, therapyDate]);
 
   // 1. 컴포넌트 마운트 시 고객 리스트 조회
   useEffect(() => {
@@ -138,20 +174,25 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
         throw new Error('올바르지 않은 오디오 파일이거나 오디오 길이를 측정할 수 없습니다.');
       }
 
+      // 연동 예약 일시 또는 수동 드롭다운 일시 판별
+      const targetAppId = appointmentId || (selectedAppId !== 'today' ? selectedAppId : null);
+      const targetDate = therapyDate || (manualDateTime ? manualDateTime.date : formatKST(new Date(), 'yyyy-MM-dd'));
+      const targetTime = therapyTime || (manualDateTime ? manualDateTime.time : formatKST(new Date(), 'HH:mm'));
+
       // 1. Sessions DB Insert (고객정보 연동하여 삽입)
       const { data: sessionData, error: sessionErr } = await supabase
         .from('sessions')
         .insert({
           user_id: session.user.id,
           client_id: selectedClient.id,
-          appointment_id: appointmentId || null,
+          appointment_id: targetAppId || null,
           profession: profession,
           client_name: selectedClient.name,
           status: 'pending',
           memo: memo,
           duration: Math.ceil(duration),
-          therapy_date: therapyDate || null,
-          therapy_time: therapyTime || null,
+          therapy_date: targetDate || null,
+          therapy_time: targetTime || null,
         })
         .select()
         .single();
@@ -298,7 +339,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
                   <X size={16} />
                 </button>
               </div>
-              {therapyDate && (
+              {therapyDate ? (
                 <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 flex items-center justify-between text-xs text-indigo-900 font-medium mt-2">
                   <div className="flex items-center gap-2">
                     <span>📅</span>
@@ -307,6 +348,42 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
                   <span className="font-bold bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg">
                     {therapyDate} {therapyTime || ''}
                   </span>
+                </div>
+              ) : (
+                <div className="bg-amber-50/70 border border-amber-200/60 rounded-xl p-3 space-y-2 text-xs mt-2">
+                  <div className="flex justify-between items-center text-amber-900 font-bold">
+                    <span>📅 차팅 세션 예약 매핑</span>
+                    <span className="text-[10px] text-amber-500 font-medium">* 필수 선택</span>
+                  </div>
+                  <select
+                    value={selectedAppId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedAppId(val);
+                      if (val === 'today' || val === '') {
+                        setManualDateTime(null);
+                      } else {
+                        const matched = recentAppointments.find(a => a.id === val);
+                        if (matched) {
+                          const yyyyMMdd = matched.start_time.split('T')[0];
+                          const hhmm = matched.start_time.split('T')[1].substring(0, 5);
+                          setManualDateTime({ date: yyyyMMdd, time: hhmm });
+                        }
+                      }
+                    }}
+                    className="w-full bg-white border border-amber-200 rounded-lg p-2 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400 font-semibold"
+                  >
+                    <option value="today">☀️ 오늘 현재 일시로 새 차팅 생성</option>
+                    {recentAppointments.map((app) => {
+                      const dateStr = app.start_time.split('T')[0];
+                      const timeStr = app.start_time.split('T')[1].substring(0, 5);
+                      return (
+                        <option key={app.id} value={app.id}>
+                          {dateStr} {timeStr} ({app.note ? `${app.note.substring(0, 10)}...` : '치료 예약'})
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
               )}
             </>
