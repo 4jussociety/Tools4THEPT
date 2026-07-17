@@ -4,6 +4,7 @@ import { Sparkles, History, Search } from 'lucide-react';
 import { AudioUploadForm } from './components/AudioUploadForm';
 import { ManualTherapyRecordForm } from './components/ManualTherapyRecordForm';
 import { ClinicalSoapChart } from './components/ClinicalSoapChart';
+import ClientChartingHistoryPanel from '../../clients/ClientChartingHistoryPanel';
 import type { SessionResult } from './types/charting';
 
 export default function ChartingPage() {
@@ -12,7 +13,7 @@ export default function ChartingPage() {
   const appointmentId = searchParams.get('appointment_id') || undefined;
   const therapyDate = searchParams.get('date') || undefined;
   const therapyTime = searchParams.get('time') || undefined;
-  const [activeTab, setActiveTab] = useState<'upload' | 'manual-therapy' | 'soap'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'manual-therapy' | 'soap' | 'history'>('upload');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
 
   return (
@@ -107,6 +108,9 @@ export default function ChartingPage() {
                   guideContent={sessionResult.guide_content}
                   refinedTranscript={sessionResult.refined_transcript}
                 />
+              )}
+              {activeTab === 'history' && clientId && (
+                <ClientChartingHistoryPanel clientId={clientId} />
               )}
             </div>
           </div>

@@ -1,0 +1,39 @@
+# GitHub Actions workflow to deploy Vite app to GitHub Pages
+# This workflow builds the Vite project in the `book` workspace and pushes the generated static files
+# to the `gh-pages` branch. GitHub Pages should be configured to serve from the `gh-pages` branch (root).
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite project (book workspace)
+        run: npm run build --workspace book
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./book/dist
+          # Optional: keep previous releases
+          keep_files: false
