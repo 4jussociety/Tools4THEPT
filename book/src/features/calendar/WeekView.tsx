@@ -1075,6 +1075,19 @@ export default function WeekView() {
                                         </div>
                                     </div>
                                 )}
+                                {selectedAppointment.event_type === 'APPOINTMENT' && selectedAppointment.client && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedAppointment(null);
+                                            window.location.href = `/book/charting?client_id=${selectedAppointment.client?.id}`;
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-100 transition-all hover:scale-[1.01] active:scale-[0.99] mt-3"
+                                    >
+                                        <MessageSquare className="w-4 h-4 text-indigo-500" />
+                                        🎙️ 이 고객의 AI 음성 차팅 바로가기
+                                    </button>
+                                )}
                             </div>
 
 
