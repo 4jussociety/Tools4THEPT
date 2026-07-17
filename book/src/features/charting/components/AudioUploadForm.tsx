@@ -29,20 +29,49 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   const [showRecordingGuide, setShowRecordingGuide] = useState(false);
   const [chunkStatuses, setChunkStatuses] = useState<{ [key: number]: string }>({});
 
-  // 30분 단위 오디오 바이너리 물리 슬라이싱 헬퍼 함수
-  const sliceAudioFile = (file: File, duration: number, chunkDurationSec = 1800): Blob[] => {
-    const blobs: Blob[] = [];
-    const totalSize = file.size;
-    const numChunks = Math.ceil(duration / chunkDurationSec);
-    const chunkSize = Math.floor(totalSize / numChunks);
-
-    for (let i = 0; i < numChunks; i++) {
-      const start = i * chunkSize;
-      const end = Math.min(start + chunkSize, totalSize);
-      const slice = file.slice(start, end, file.type);
-      blobs.push(slice);
-    }
-    return blobs;
+  // WAV 파일 포맷 전용 정교한 헤더 복제 물리 슬라이싱 헬퍼 함수
+  const sliceWavFile = (file: File, duration: number, chunkDurationSec = 1800): Promise<Blob[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          if (arrayBuffer.byteLength < 44) {
+            resolve([file]); // 파일이 너무 작으면 슬라이싱 없이 반환
+            return;
+          }
+          
+          const header = arrayBuffer.slice(0, 44);
+          const dataSize = arrayBuffer.byteLength - 44;
+          const numChunks = Math.ceil(duration / chunkDurationSec);
+          const chunkSize = Math.floor(dataSize / numChunks);
+          
+          const blobs: Blob[] = [];
+          for (let i = 0; i < numChunks; i++) {
+            const start = 44 + (i * chunkSize);
+            const end = Math.min(start + chunkSize, arrayBuffer.byteLength);
+            const chunkData = arrayBuffer.slice(start, end);
+            
+            // 새 WAV 바이너리 병합: [헤더] + [조각 데이터]
+            const newFileBuffer = new Uint8Array(header.byteLength + chunkData.byteLength);
+            newFileBuffer.set(new Uint8Array(header), 0);
+            newFileBuffer.set(new Uint8Array(chunkData), header.byteLength);
+            
+            // 새 WAV 조각 크기에 맞춰 헤더의 크기 필드 재기록 (Little Endian)
+            const chunkView = new DataView(newFileBuffer.buffer);
+            chunkView.setUint32(4, 36 + chunkData.byteLength, true); // ChunkSize
+            chunkView.setUint32(40, chunkData.byteLength, true);     // Subchunk2Size
+            
+            blobs.push(new Blob([newFileBuffer], { type: 'audio/wav' }));
+          }
+          resolve(blobs);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("파일을 읽는 도중 에러가 발생했습니다."));
+      reader.readAsArrayBuffer(file);
+    });
   };
 
   // 고객 관리 연동 관련 상태 변수
@@ -223,11 +252,20 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
 
       const sessionId = sessionData.id;
 
-      // 2. 30분 단위 오디오 청킹 처리
-      const chunks = sliceAudioFile(selectedFile, duration, 1800);
+      // 2. 오디오 청킹 및 포맷 분기 처리 (컨테이너 깨짐 방지)
       const fileExt = selectedFile.name.split('.').pop()?.toLowerCase() || 'wav';
-
-      console.log(`[Audio Slicing] Sliced into ${chunks.length} chunks.`);
+      let chunks: Blob[] = [];
+      
+      if (fileExt === 'wav') {
+        chunks = await sliceWavFile(selectedFile, duration, 1800);
+        console.log(`[WAV Audio Slicing] Sliced into ${chunks.length} chunks.`);
+      } else {
+        if (duration > 18000) { // 5시간
+          throw new Error("WAV가 아닌 포맷(M4A, MP3 등)은 5시간을 초과하여 업로드할 수 없습니다. WAV로 변환 후 올려주시거나 파일을 분할하여 등록해주세요.");
+        }
+        chunks = [selectedFile];
+        console.log(`[Audio Upload] Non-WAV file detected. Uploading as a single chunk.`);
+      }
 
       // 3. Realtime 구독 설정 (chunks 테이블 진행 상태 모니터링)
       sessionSubscription = supabase
