@@ -33,6 +33,7 @@ function App() {
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/clients" element={<ClientList />} />
                 <Route path="/charting" element={<ChartingPage />} />
+                <Route path="/charting/history" element={<Navigate to="/charting?tab=history" replace />} />
                 <Route path="/profile" element={<ProfilePage />} />
 
                 {/* 매니저 전용 라우트 */}

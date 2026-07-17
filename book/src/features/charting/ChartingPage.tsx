@@ -4,16 +4,17 @@ import { Sparkles, History, Search } from 'lucide-react';
 import { AudioUploadForm } from './components/AudioUploadForm';
 import { ManualTherapyRecordForm } from './components/ManualTherapyRecordForm';
 import { ClinicalSoapChart } from './components/ClinicalSoapChart';
-import ClientChartingHistoryPanel from '../../clients/ClientChartingHistoryPanel';
+import ClientChartingHistoryPanel from '../clients/ClientChartingHistoryPanel';
 import type { SessionResult } from './types/charting';
 
 export default function ChartingPage() {
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client_id') || searchParams.get('clientId') || undefined;
+  const initialTab = searchParams.get('tab') as 'upload' | 'manual-therapy' | 'soap' | 'history' | null;
   const appointmentId = searchParams.get('appointment_id') || undefined;
   const therapyDate = searchParams.get('date') || undefined;
   const therapyTime = searchParams.get('time') || undefined;
-  const [activeTab, setActiveTab] = useState<'upload' | 'manual-therapy' | 'soap' | 'history'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'manual-therapy' | 'soap' | 'history'>(initialTab ?? 'upload');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
 
   return (
@@ -86,6 +87,17 @@ export default function ChartingPage() {
                 }`}
               >
                 임상 SOAP 차트
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                disabled={!clientId}
+                className={`py-3 px-4 font-bold text-xs border-b-2 transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                  activeTab === 'history'
+                    ? 'border-indigo-600 text-indigo-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                히스토리
               </button>
             </div>
 

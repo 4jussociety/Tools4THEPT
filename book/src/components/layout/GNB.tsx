@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
-import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Globe, Settings, UserCog } from 'lucide-react'
+import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Globe, Settings, UserCog, History } from 'lucide-react'
 import { clsx } from 'clsx'
 
 export default function GNB() {
@@ -21,6 +21,7 @@ export default function GNB() {
         { label: '예약 관리', href: '/calendar', icon: CalendarDays },
         { label: '고객 관리', href: '/clients', icon: Users },
         { label: 'AI 음성 차팅', href: '/charting', icon: Sparkles },
+        { label: '히스토리', href: '/charting?tab=history', icon: History },
     ]
 
     const displayName = profile?.full_name || profile?.name || user?.email?.split('@')[0] || '치료사'
