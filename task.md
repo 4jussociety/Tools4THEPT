@@ -1,20 +1,15 @@
-# AI 음성 차팅 파이프라인 구현 할 일 목록
-이 파일은 30분 단위 청킹 및 Supabase Edge Function을 활용한 음성 차팅 파이프라인의 작업 단계를 추적하고 상태를 관리하는 태스크 리스트입니다.
+# AI 음성 차팅 단일 파일 파이프라인 구현 할 일 목록
+이 파일은 단일 파일 오디오 전송 방식과 Edge Function(analyze)의 실시간 완료 대기 기능을 이식하기 위한 세부 구현 및 검증 작업 체크리스트입니다.
 
 ---
 
-- `[x]` DB 마이그레이션 적용
-  - `[x]` `chunks`, `transcriptions`, `results` 테이블 스키마 DDL 작성
-  - `[x]` RLS 정책 및 인덱스 설정
-- `[x]` Supabase Storage 설정
-  - `[x]` `audio_chunks` 버킷 생성 스크립트 작성
-- `[x]` Edge Functions 신규 구현
-  - `[x]` `process-chunk` 기능 (Soniox Files API 연동) 작성
-  - `[x]` `poll-jobs` 기능 (Soniox 상태 폴링 및 OpenAI GPT-4o-mini 연동) 작성
-- `[x]` 프론트엔드 `AudioUploadForm.tsx` 수정
-  - `[x]` 브라우저 내 오디오 파일 청킹 로직 구현
-  - `[x]` 청크 순차 업로드 및 Edge Function 호출 구현
-  - `[x]` Realtime 상태 구독 및 UI 실시간 진행률 표시 구현
-- `[x]` 전체 통합 테스트 및 검증
-  - `[x]` 짧은 오디오 청크 업로드 테스트
-  - `[x]` 전체 차트/가이드 결과물 DB 영구 보존 및 오디오 삭제 확인
+- `[/]` 프론트엔드 `AudioUploadForm.tsx` 롤백 및 단순화
+  - `[ ]` 청킹 로직(`sliceWavFile`) 및 청크 상태 그리드 UI 제거
+  - `[ ]` 단일 오디오 파일 direct 업로드 및 `analyze` Edge Function 단일 호출 구현
+  - `[ ]` 단일 분석 실시간 진행 피드백 복원
+- `[ ]` Edge Function `analyze/index.ts` 최적화 구현
+  - `[ ]` 클라이언트 분석 트리거 로직 내에 Soniox 실시간 완료 대기 폴러(최대 100초) 이식
+  - `[ ]` 100초 초과 시 202 Accepted 및 Webhook 백그라운드 위임 이중화 처리 검증
+- `[ ]` DB 정리 및 최종 통합 테스트
+  - `[ ]` `chunks`, `transcriptions` 미사용 테이블 정리
+  - `[ ]` 단일 오디오 업로드 실시간 완료 및 5시간 이하 파일 정상 차팅 검증

@@ -27,52 +27,6 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showRecordingGuide, setShowRecordingGuide] = useState(false);
-  const [chunkStatuses, setChunkStatuses] = useState<{ [key: number]: string }>({});
-
-  // WAV 파일 포맷 전용 정교한 헤더 복제 물리 슬라이싱 헬퍼 함수
-  const sliceWavFile = (file: File, duration: number, chunkDurationSec = 1800): Promise<Blob[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          if (arrayBuffer.byteLength < 44) {
-            resolve([file]); // 파일이 너무 작으면 슬라이싱 없이 반환
-            return;
-          }
-          
-          const header = arrayBuffer.slice(0, 44);
-          const dataSize = arrayBuffer.byteLength - 44;
-          const numChunks = Math.ceil(duration / chunkDurationSec);
-          const chunkSize = Math.floor(dataSize / numChunks);
-          
-          const blobs: Blob[] = [];
-          for (let i = 0; i < numChunks; i++) {
-            const start = 44 + (i * chunkSize);
-            const end = Math.min(start + chunkSize, arrayBuffer.byteLength);
-            const chunkData = arrayBuffer.slice(start, end);
-            
-            // 새 WAV 바이너리 병합: [헤더] + [조각 데이터]
-            const newFileBuffer = new Uint8Array(header.byteLength + chunkData.byteLength);
-            newFileBuffer.set(new Uint8Array(header), 0);
-            newFileBuffer.set(new Uint8Array(chunkData), header.byteLength);
-            
-            // 새 WAV 조각 크기에 맞춰 헤더의 크기 필드 재기록 (Little Endian)
-            const chunkView = new DataView(newFileBuffer.buffer);
-            chunkView.setUint32(4, 36 + chunkData.byteLength, true); // ChunkSize
-            chunkView.setUint32(40, chunkData.byteLength, true);     // Subchunk2Size
-            
-            blobs.push(new Blob([newFileBuffer], { type: 'audio/wav' }));
-          }
-          resolve(blobs);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = () => reject(new Error("파일을 읽는 도중 에러가 발생했습니다."));
-      reader.readAsArrayBuffer(file);
-    });
-  };
 
   // 고객 관리 연동 관련 상태 변수
   const [clients, setClients] = useState<any[]>([]);
@@ -206,10 +160,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
 
     setIsAnalyzing(true);
     setErrorMessage(null);
-    setChunkStatuses({});
     if (onAnalysisStarted) onAnalysisStarted();
-
-    let sessionSubscription: any = null;
 
     try {
       const { data: authData } = await supabase.auth.getSession();
@@ -252,109 +203,31 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
 
       const sessionId = sessionData.id;
 
-      // 2. 오디오 청킹 및 포맷 분기 처리 (컨테이너 깨짐 방지)
+      // 2. 단일 오디오 파일 Storage Upload
       const fileExt = selectedFile.name.split('.').pop()?.toLowerCase() || 'wav';
-      let chunks: Blob[] = [];
-      
-      if (fileExt === 'wav') {
-        chunks = await sliceWavFile(selectedFile, duration, 1800);
-        console.log(`[WAV Audio Slicing] Sliced into ${chunks.length} chunks.`);
-      } else {
-        if (duration > 18000) { // 5시간
-          throw new Error("WAV가 아닌 포맷(M4A, MP3 등)은 5시간을 초과하여 업로드할 수 없습니다. WAV로 변환 후 올려주시거나 파일을 분할하여 등록해주세요.");
-        }
-        chunks = [selectedFile];
-        console.log(`[Audio Upload] Non-WAV file detected. Uploading as a single chunk.`);
-      }
+      const storagePath = `${session.user.id}/${sessionId}_processed_audio.${fileExt}`;
 
-      // 3. Realtime 구독 설정 (chunks 테이블 진행 상태 모니터링)
-      sessionSubscription = supabase
-        .channel(`session_chunks_${sessionId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'chunks',
-            filter: `session_id=eq.${sessionId}`,
-          },
-          (payload: any) => {
-            const updatedChunk = payload.new;
-            if (updatedChunk) {
-              setChunkStatuses((prev) => ({
-                ...prev,
-                [updatedChunk.segment_index]: updatedChunk.status,
-              }));
-            }
-          }
-        )
-        .subscribe();
-
-      // 4. 각 청크별 업로드 및 process-chunk 비동기 호출 실행
-      const uploadPromises = chunks.map(async (chunkBlob, index) => {
-        setChunkStatuses((prev) => ({ ...prev, [index]: 'uploading' }));
-        const storagePath = `${session.user.id}/${sessionId}_chunk_${index}.${fileExt}`;
-
-        // Storage 업로드
-        const { error: uploadErr } = await supabase.storage
-          .from('audio-records')
-          .upload(storagePath, chunkBlob, {
-            contentType: selectedFile.type || 'application/octet-stream',
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        if (uploadErr) {
-          setChunkStatuses((prev) => ({ ...prev, [index]: 'failed' }));
-          throw new Error(`청크 ${index} 업로드 실패: ${uploadErr.message}`);
-        }
-
-        // Public URL 가져오기
-        const { data: urlData } = supabase.storage
-          .from('audio-records')
-          .getPublicUrl(storagePath);
-
-        const publicUrl = urlData?.publicUrl;
-        if (!publicUrl) {
-          throw new Error(`청크 ${index} Public URL 획득 실패`);
-        }
-
-        // DB chunks에 등록
-        const { data: dbChunk, error: chunkInsertErr } = await supabase
-          .from('chunks')
-          .insert({
-            session_id: sessionId,
-            segment_index: index,
-            file_path: publicUrl,
-            status: 'uploaded',
-          })
-          .select()
-          .single();
-
-        if (chunkInsertErr || !dbChunk) {
-          throw new Error(`청크 ${index} DB 등록 실패: ${chunkInsertErr?.message}`);
-        }
-
-        setChunkStatuses((prev) => ({ ...prev, [index]: 'uploaded' }));
-
-        // process-chunk Edge Function 트리거
-        const { error: invokeErr } = await supabase.functions.invoke('process-chunk', {
-          body: { chunk_id: dbChunk.id, file_path: publicUrl },
+      const { error: uploadErr } = await supabase.storage
+        .from('audio-records')
+        .upload(storagePath, selectedFile, {
+          contentType: selectedFile.type || 'application/octet-stream',
+          cacheControl: '3600',
+          upsert: true,
         });
 
-        if (invokeErr) {
-          throw new Error(`청크 ${index} Edge Function 호출 실패: ${invokeErr.message}`);
-        }
+      if (uploadErr) {
+        await supabase.from('sessions').delete().eq('id', sessionId);
+        throw new Error('음성 파일 업로드 실패: ' + uploadErr.message);
+      }
+
+      // 3. 단일 analyze Edge Function 비동기 호출 트리거
+      const { data: invokeData, error: invokeErr } = await supabase.functions.invoke('analyze', {
+        body: { session_id: sessionId, duration: duration, file_ext: fileExt },
       });
 
-      // 모든 업로드 및 트리거 대기
-      await Promise.all(uploadPromises);
-
-      // 세션 상태를 'processing'으로 업데이트
-      await supabase
-        .from('sessions')
-        .update({ status: 'processing' })
-        .eq('id', sessionId);
+      if (invokeErr) {
+        throw new Error('AI 분석 요청 실패: ' + invokeErr.message);
+      }
 
       // If tied to appointment, auto-update appointment status to COMPLETED
       if (appointmentId) {
@@ -364,7 +237,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
           .eq('id', appointmentId);
       }
 
-      // 5. 모든 청크 분석 결과가 완료될 때까지 대기 (폴링 방식으로 수신 체크)
+      // 4. 분석 완료 상태 실시간 폴링 및 대기 (Edge Function 내부 100초 대기로 인해 브라우저는 짧게 대기)
       let allCompleted = false;
       let finalResultData: any = null;
       let retryCount = 0;
@@ -374,7 +247,6 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
         await new Promise((resolve) => setTimeout(resolve, 5000));
         retryCount++;
 
-        // 세션 완료 여부 확인
         const { data: currentSession } = await supabase
           .from('sessions')
           .select('status')
@@ -383,31 +255,23 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
 
         if (currentSession?.status === 'completed') {
           allCompleted = true;
-          // 최종 결과 가져오기
           const { data: finalResult } = await supabase
             .from('results')
             .select('*')
-            .eq('session_id', sessionId);
+            .eq('session_id', sessionId)
+            .single();
 
-          if (finalResult && finalResult.length > 0) {
-            // 여러 청크의 전사본과 차트 데이터를 종합 병합
-            const rawTranscripts = finalResult.map(r => r.raw_transcript || '').join('\n\n');
-            const refinedTranscripts = finalResult.map(r => r.refined_transcript || '').join('\n\n');
-            const guides = finalResult.map(r => r.guide_content || '').join('\n\n');
-            
-            // SOAP 차트는 첫 번째 청크의 구조를 기반으로 병합 또는 수집
-            const mergedChart = finalResult[0].chart_data || {};
-
+          if (finalResult) {
             finalResultData = {
               session_id: sessionId,
               appointment_id: appointmentId,
               client_id: selectedClient.id,
               client_name: selectedClient.name,
               chart_number: selectedClient.chart_number || '',
-              raw_transcript: rawTranscripts,
-              refined_transcript: refinedTranscripts,
-              guide_content: guides,
-              chart_data: mergedChart,
+              raw_transcript: finalResult.raw_transcript,
+              refined_transcript: finalResult.refined_transcript,
+              guide_content: finalResult.guide_content,
+              chart_data: finalResult.chart_data,
             };
           }
         } else if (currentSession?.status === 'failed') {
@@ -428,9 +292,6 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
       setErrorMessage(err.message || 'AI 분석 처리 중 에러가 발생했습니다.');
     } finally {
       setIsAnalyzing(false);
-      if (sessionSubscription) {
-        supabase.removeChannel(sessionSubscription);
-      }
     }
   };
 

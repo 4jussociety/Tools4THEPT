@@ -468,7 +468,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { session_id, duration } = await req.json();
+      const { session_id, duration, file_ext } = await req.json();
       if (!session_id || duration === undefined) {
         return new Response(JSON.stringify({ detail: "Missing session_id or duration in payload" }), {
           status: 400,
@@ -530,23 +530,13 @@ Deno.serve(async (req) => {
             const isExpired = new Date() > new Date(sub.current_period_end);
             if (isExpired) {
               console.log(`[Grace Period Expired] Downgrading user ${user.id} due to past_due subscription expired.`);
-              // Update subscription to canceled
-              await adminClient
-                .from("subscriptions")
-                .update({ status: "canceled" })
-                .eq("id", prof.subscription_id);
-
-              // Downgrade profile to free
-              await adminClient
-                .from("profiles")
-                .update({
-                  tier: "free",
-                  subscription_id: null,
-                  quota_limit: 10,
-                  quota_used: 10,
-                })
-                .eq("id", user.id);
-
+              await adminClient.from("subscriptions").update({ status: "canceled" }).eq("id", prof.subscription_id);
+              await adminClient.from("profiles").update({
+                tier: "free",
+                subscription_id: null,
+                quota_limit: 10,
+                quota_used: 10,
+              }).eq("id", user.id);
               prof.tier = "free";
               prof.quota_limit = 10;
               prof.quota_used = 10;
@@ -554,16 +544,12 @@ Deno.serve(async (req) => {
             }
           } else if (sub.status === "canceled" && tier !== "free") {
             console.log(`[Subscription Canceled] Downgrading user ${user.id} to free tier.`);
-            await adminClient
-              .from("profiles")
-              .update({
-                tier: "free",
-                subscription_id: null,
-                quota_limit: 10,
-                quota_used: 10,
-              })
-              .eq("id", user.id);
-
+            await adminClient.from("profiles").update({
+              tier: "free",
+              subscription_id: null,
+              quota_limit: 10,
+              quota_used: 10,
+            }).eq("id", user.id);
             prof.tier = "free";
             prof.quota_limit = 10;
             prof.quota_used = 10;
@@ -572,7 +558,7 @@ Deno.serve(async (req) => {
         }
 
         if (tier === 'free') {
-          if (duration > 1800) { // 30분 초과 검증
+          if (duration > 1800) {
             return new Response(JSON.stringify({ detail: "Free 등급은 1회 최대 30분까지만 분석이 가능합니다." }), {
               status: 400,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -580,13 +566,12 @@ Deno.serve(async (req) => {
           }
           deductAmount = 1;
         } else {
-          if (duration > 7200) { // 120분 초과 검증
-            return new Response(JSON.stringify({ detail: "유료 등급은 1회 최대 120분까지만 분석이 가능합니다." }), {
+          if (duration > 18000) { // 5시간으로 변경
+            return new Response(JSON.stringify({ detail: "유료 등급은 1회 최대 5시간까지만 분석이 가능합니다." }), {
               status: 400,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          // 분 단위 올림 차감 (초 단위 기록)
           deductAmount = Math.ceil(duration / 60) * 60;
         }
 
@@ -625,7 +610,8 @@ Deno.serve(async (req) => {
         .eq("id", session_id);
 
       // Download audio file from Storage
-      const storagePath = `${user.id}/${session_id}_processed_audio.wav`;
+      const ext = file_ext || 'wav';
+      const storagePath = `${user.id}/${session_id}_processed_audio.${ext}`;
       console.log(`[Storage] Downloading audio from bucket: audio-records, path: ${storagePath}`);
       
       const { data: audioBlob, error: downloadError } = await adminClient
@@ -635,7 +621,6 @@ Deno.serve(async (req) => {
 
       if (downloadError || !audioBlob) {
         console.error(`[Storage] Download error: ${downloadError?.message}`);
-        // Refund quota and fail session
         await adminClient.from("profiles").update({ quota_used: profile.quota_used }).eq("id", user.id);
         await adminClient.from("sessions").update({ status: "failed" }).eq("id", session_id);
         
@@ -666,7 +651,7 @@ Deno.serve(async (req) => {
         console.log(`[Soniox] Upload successful. File ID: ${fileId}`);
 
         // Call Soniox asynchronous transcription with Webhook url
-        const webhookUrl = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}`;
+        const webhookUrl = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}&file_ext=${ext}`;
         console.log(`[Soniox] Creating async transcription with Webhook: ${webhookUrl}`);
         
         const transRes = await fetch("https://api.soniox.com/v1/transcriptions", {
@@ -692,25 +677,177 @@ Deno.serve(async (req) => {
         }
 
         const transData = await transRes.json();
-        console.log(`[Soniox] Transcription task created: ${transData.id}`);
+        const jobId = transData.id;
+        console.log(`[Soniox] Transcription task created: ${jobId}`);
 
+        // [실시간 최적화] Edge Function 내부에서 Soniox 작업 완료를 실시간 폴링하여 대기
+        // 오디오 크기에 관계 없이 사용자 화면 대기 시간을 최소화하기 위해 최대 100초간 대기합니다.
+        let jobCompleted = false;
+        let transcriptResult: any = null;
+        const maxPollRetries = 25; // 25 * 4초 = 100초
+        
+        for (let attempt = 0; attempt < maxPollRetries; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+          
+          const pollRes = await fetch(`https://api.soniox.com/v1/transcriptions/${jobId}`, {
+            headers: { "Authorization": `Bearer ${sonioxApiKey}` },
+          });
+          
+          if (pollRes.ok) {
+            const pollData = await pollRes.json();
+            if (pollData.status === "completed") {
+              jobCompleted = true;
+              transcriptResult = pollData;
+              break;
+            } else if (pollData.status === "failed") {
+              throw new Error("Soniox transcription failed at STT engine.");
+            }
+          }
+        }
+
+        // 만약 100초 안에 완료되었다면, 즉시 GPT 정제 및 차트/가이드 생성 수행 후 200 반환
+        if (jobCompleted && transcriptResult) {
+          console.log(`[process-instant] STT completed within limit. Generating GPT outputs...`);
+          
+          const segments = groupTokensBySpeaker(transcriptResult);
+          const rawFormatted = formatDiarizedTranscript(segments);
+
+          if (!rawFormatted.trim()) {
+            throw new Error("STT returned empty transcript.");
+          }
+
+          // OpenAI 정제 (1단계)
+          const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${openaiApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: REFINE_SYSTEM_PROMPT },
+                { role: "user", content: rawFormatted },
+              ],
+              temperature: 0.3,
+            }),
+          });
+          if (!refineRes.ok) throw new Error("OpenAI Refine error: " + (await refineRes.text()));
+          const refineJson = await refineRes.json();
+          const refinedTranscript = refineJson.choices[0].message.content.trim();
+
+          const chartUserContent = `아래는 ${session.profession.toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
+            session.memo ? `\n\n[추가 수기 메모]\n${session.memo}` : ""
+          }`;
+
+          // [병렬 처리 최적화] SOAP 차트와 가이드 작성을 동시에 호출 (약 15초 단축)
+          const [chartResponse, guideResponse] = await Promise.all([
+            fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${openaiApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: getChartPrompt(session.profession) },
+                  { role: "user", content: chartUserContent },
+                ],
+                temperature: 0.1,
+                response_format: { type: "json_object" },
+              }),
+            }),
+            fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${openaiApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: getGuidePrompt(session.profession) },
+                  { role: "user", content: chartUserContent },
+                ],
+                temperature: 0.3,
+              }),
+            })
+          ]);
+
+          if (!chartResponse.ok) throw new Error("OpenAI SOAP Chart error: " + (await chartResponse.text()));
+          if (!guideResponse.ok) throw new Error("OpenAI Patient Guide error: " + (await guideResponse.text()));
+
+          const chartJson = await chartResponse.json();
+          const guideJson = await guideResponse.json();
+
+          const chartData = JSON.parse(chartJson.choices[0].message.content.trim());
+          const guideContent = guideJson.choices[0].message.content.trim();
+
+          // DB 저장
+          const { error: resultsErr } = await adminClient.from("results").insert({
+            session_id: session_id,
+            raw_transcript: rawFormatted,
+            refined_transcript: refinedTranscript,
+            chart_data: chartData,
+            guide_content: guideContent,
+          });
+          if (resultsErr) throw resultsErr;
+
+          await adminClient.from("sessions").update({ status: "completed" }).eq("id", session_id);
+          console.log(`[Instant Completion] Session ${session_id} successfully finalized in real-time.`);
+
+          // Storage 파일 삭제
+          try {
+            await adminClient.storage.from("audio-records").remove([storagePath]);
+          } catch (e) {}
+
+          // Soniox 자원 정리
+          try {
+            await fetch(`https://api.soniox.com/v1/transcriptions/${jobId}`, {
+              method: "DELETE",
+              headers: { "Authorization": `Bearer ${sonioxApiKey}` },
+            });
+            if (transcriptResult.file_id) {
+              await fetch(`https://api.soniox.com/v1/files/${transcriptResult.file_id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${sonioxApiKey}` },
+              });
+            }
+          } catch (e) {}
+
+          return new Response(
+            JSON.stringify({
+              status: "success",
+              instant: true,
+              message: "분석이 실시간으로 완료되었습니다.",
+              session_id: session_id,
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+
+        // 100초 초과 시 202를 주어 Webhook 백그라운드 위임
+        console.log(`[analyze] Timeout limit reached. Entrusting rest to Webhook callback...`);
         return new Response(
           JSON.stringify({
-            status: "success",
-            message: "분석이 백그라운드에서 성공적으로 시작되었습니다.",
+            status: "accepted",
+            instant: false,
+            message: "분석이 백그라운드에서 진행 중입니다. 완료 시 대시보드에 업데이트됩니다.",
             session_id: session_id,
           }),
           {
-            status: 200,
+            status: 202,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
 
       } catch (err) {
         console.error("[Soniox] Failed during process initialization:", err);
-        // Refund quota
         await adminClient.from("profiles").update({ quota_used: profile.quota_used }).eq("id", user.id);
-        // Set session to failed
         await adminClient.from("sessions").update({ status: "failed" }).eq("id", session_id);
         
         return new Response(JSON.stringify({ detail: "STT 연동 도중 에러가 발생했습니다: " + err.message }), {
