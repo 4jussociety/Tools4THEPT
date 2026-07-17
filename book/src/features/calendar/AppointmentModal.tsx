@@ -24,7 +24,7 @@ const appointmentSchema = z.object({
     event_type: z.enum(['APPOINTMENT', 'BLOCK']),
     block_title: z.string().optional(),
     ticket_id: z.string().optional().nullable(),
-    session_type: z.string().optional().nullable(),
+    session_type: z.enum(['option1', 'option2', 'option3', 'option4']),
 })
 
 type AppointmentForm = z.infer<typeof appointmentSchema>
@@ -64,7 +64,7 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
         setValue,
         watch,
         reset,
-        formState: { isSubmitting, errors },
+        formState: { isSubmitting },
     } = useForm<AppointmentForm>({
         resolver: zodResolver(appointmentSchema),
         defaultValues: {
@@ -72,13 +72,6 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
             session_type: 'option1',
         }
     })
-
-    // 디버깅용 Zod 검증 에러 출력
-    useEffect(() => {
-        if (Object.keys(errors).length > 0) {
-            console.warn('예약 등록 Zod 검증 실패 목록:', errors)
-        }
-    }, [errors])
 
     const eventType = watch('event_type')
     const watchStartTime = watch('start_time')
@@ -147,12 +140,14 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                     // ... (existing initialData logic)
                     setValue('date', initialData.date)
 
-                    const validInstructorId = (initialData.instructor_id && profiles?.some(p => p.id === initialData.instructor_id))
-                        ? initialData.instructor_id
-                        : (myProfile?.id && profiles?.some(p => p.id === myProfile.id))
-                            ? myProfile.id
-                            : profiles?.[0]?.id || ''
-                    setValue('instructor_id', validInstructorId)
+                    if (profiles && profiles.length > 0) {
+                        const validInstructorId = (initialData.instructor_id && profiles.some(p => p.id === initialData.instructor_id))
+                            ? initialData.instructor_id
+                            : (myProfile?.id && profiles.some(p => p.id === myProfile.id))
+                                ? myProfile.id
+                                : profiles[0]?.id || ''
+                        setValue('instructor_id', validInstructorId)
+                    }
                     // ... (time logic)
                     if (initialData.end_time) {
                         setValue('start_time', initialData.start_time)
@@ -169,7 +164,7 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                 }
             }
         }
-    }, [isOpen, initialData, editingAppointment, setValue, reset, myProfile])
+    }, [isOpen, initialData, editingAppointment, setValue, reset, myProfile, profiles])
 
 
     const { data: clientHistory } = useClientAppointments(selectedClient?.id)
@@ -794,13 +789,6 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '저장하기'}
                             </button>
                         </div>
-                        {Object.keys(errors).length > 0 && (
-                            <div className="px-6 pb-4 text-center">
-                                <p className="text-[10px] text-red-500 font-bold animate-in fade-in slide-in-from-top-1">
-                                    ⚠️ 입력 정보를 확인해 주세요. ({Object.values(errors)[0]?.message})
-                                </p>
-                            </div>
-                        )}
                     </form>
                 )}
             </div>
