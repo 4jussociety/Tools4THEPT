@@ -522,7 +522,7 @@ Deno.serve(async (req) => {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         const { data: prof, error: profErr } = await adminClient
           .from("profiles")
-          .select("tier, quota_limit, quota_used, subscription_id")
+          .select("tier, quota_limit, quota_used")
           .eq("id", user.id)
           .single();
 
@@ -643,16 +643,19 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Upload file to Soniox
+      // Upload file to Soniox (Multipart Form-Data)
       try {
-        console.log(`[Soniox] Uploading audio to Soniox Files API...`);
+        console.log(`[Soniox] Uploading audio to Soniox Files API (Multipart)...`);
+        const formData = new FormData();
+        const fileBlob = new Blob([audioBlob], { type: `audio/${ext}` });
+        formData.append("file", fileBlob, `audio.${ext}`);
+
         const sonioxUploadRes = await fetch("https://api.soniox.com/v1/files", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${sonioxApiKey}`,
-            "Content-Type": "application/octet-stream",
           },
-          body: audioBlob,
+          body: formData,
         });
 
         if (!sonioxUploadRes.ok) {
