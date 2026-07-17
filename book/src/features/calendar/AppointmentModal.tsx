@@ -524,7 +524,11 @@ export default function AppointmentModal({ isOpen, onClose, initialData, editing
                                             className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold cursor-pointer transition-all text-xs h-[42px]"
                                         >
                                             <option value="">선택</option>
-                                            {profiles?.map(p => <option key={p.id} value={p.id}>{p.full_name || p.name}</option>)}
+                                            {profiles && profiles.length > 0 ? (
+                                                profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.name}</option>)
+                                            ) : myProfile ? (
+                                                <option value={myProfile.id}>{myProfile.full_name || myProfile.name || '본인 강사'}</option>
+                                            ) : null}
                                         </select>
                                     </div>
 
