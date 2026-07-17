@@ -545,28 +545,30 @@ export default function WeekView() {
                 <div>
                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3 px-2">instructors</h3>
                     <div className="space-y-1">
-                        {profiles?.map((p: { id: string; full_name?: string; name?: string }) => (
-                            <button
-                                key={p.id}
-                                onClick={() =>
-                                    setselectedInstructorIds(prev =>
-                                        prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id],
-                                    )
-                                }
-                                className={clsx(
-                                    'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold transition-all text-left',
-                                    selectedInstructorIds.includes(p.id)
-                                        ? 'bg-blue-50 text-blue-700'
-                                        : 'text-gray-500 hover:bg-gray-50'
-                                )}
-                            >
-                                <div className={clsx(
-                                    "w-2.5 h-2.5 rounded-full transition-all",
-                                    selectedInstructorIds.includes(p.id) ? "bg-blue-500 ring-2 ring-blue-200" : "bg-gray-300"
-                                )} />
-                                {p.full_name || p.name}
-                            </button>
-                        ))}
+                        {profiles
+                            ?.filter((p: { id: string }) => p.id === (profile?.id || user?.id))
+                            .map((p: { id: string; full_name?: string; name?: string }) => (
+                                <button
+                                    key={p.id}
+                                    onClick={() =>
+                                        setselectedInstructorIds(prev =>
+                                            prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id],
+                                        )
+                                    }
+                                    className={clsx(
+                                        'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold transition-all text-left',
+                                        selectedInstructorIds.includes(p.id)
+                                            ? 'bg-blue-50 text-blue-700'
+                                            : 'text-gray-500 hover:bg-gray-50'
+                                    )}
+                                >
+                                    <div className={clsx(
+                                        "w-2.5 h-2.5 rounded-full transition-all",
+                                        selectedInstructorIds.includes(p.id) ? "bg-blue-500 ring-2 ring-blue-200" : "bg-gray-300"
+                                    )} />
+                                    {p.full_name || p.name}
+                                </button>
+                            ))}
                     </div>
                 </div>
 
