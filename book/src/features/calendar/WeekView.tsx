@@ -50,7 +50,7 @@ type DraftSelection = {
 
 export default function WeekView() {
     const isMobile = useIsMobile()
-    const { user, profile } = useAuth()
+    const { user, profile, ownerId } = useAuth()
     const [currentDate, setCurrentDate] = useState(getNow())
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [modalData, setModalData] = useState<{
