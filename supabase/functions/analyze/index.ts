@@ -299,30 +299,36 @@ Deno.serve(async (req) => {
           const segments = groupTokensBySpeaker(transcriptData);
           const rawFormatted = formatDiarizedTranscript(segments);
 
-          if (!rawFormatted.trim()) {
-            throw new Error("STT returned empty transcript.");
+          // 음성과 메모가 둘 다 없으면 에러 처리
+          if (!rawFormatted.trim() && !session.memo?.trim()) {
+            throw new Error("분석할 음성 녹음 내용과 수기 메모가 모두 비어 있습니다.");
           }
 
           // OpenAI pipeline
           // 1) Refine Transcript
-          const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openaiApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [
-                { role: "system", content: REFINE_SYSTEM_PROMPT },
-                { role: "user", content: rawFormatted },
-              ],
-              temperature: 0.3,
-            }),
-          });
-          if (!refineRes.ok) throw new Error("OpenAI Refine error: " + (await refineRes.text()));
-          const refineJson = await refineRes.json();
-          const refinedTranscript = refineJson.choices[0].message.content.trim();
+          let refinedTranscript = "";
+          if (rawFormatted.trim()) {
+            const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${openaiApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: REFINE_SYSTEM_PROMPT },
+                  { role: "user", content: rawFormatted },
+                ],
+                temperature: 0.3,
+              }),
+            });
+            if (!refineRes.ok) throw new Error("OpenAI Refine error: " + (await refineRes.text()));
+            const refineJson = await refineRes.json();
+            refinedTranscript = refineJson.choices[0].message.content.trim();
+          } else {
+            refinedTranscript = "(음성 전사 내용 없음)";
+          }
 
           // 2) Generate SOAP Chart Data
           const chartUserContent = `아래는 ${session.profession.toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
@@ -728,29 +734,35 @@ Deno.serve(async (req) => {
           const segments = groupTokensBySpeaker(transcriptResult);
           const rawFormatted = formatDiarizedTranscript(segments);
 
-          if (!rawFormatted.trim()) {
-            throw new Error("STT returned empty transcript.");
+          // 음성과 메모가 둘 다 없으면 에러 처리
+          if (!rawFormatted.trim() && !session.memo?.trim()) {
+            throw new Error("분석할 음성 녹음 내용과 수기 메모가 모두 비어 있습니다.");
           }
 
           // OpenAI 정제 (1단계)
-          const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openaiApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [
-                { role: "system", content: REFINE_SYSTEM_PROMPT },
-                { role: "user", content: rawFormatted },
-              ],
-              temperature: 0.3,
-            }),
-          });
-          if (!refineRes.ok) throw new Error("OpenAI Refine error: " + (await refineRes.text()));
-          const refineJson = await refineRes.json();
-          const refinedTranscript = refineJson.choices[0].message.content.trim();
+          let refinedTranscript = "";
+          if (rawFormatted.trim()) {
+            const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${openaiApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: REFINE_SYSTEM_PROMPT },
+                  { role: "user", content: rawFormatted },
+                ],
+                temperature: 0.3,
+              }),
+            });
+            if (!refineRes.ok) throw new Error("OpenAI Refine error: " + (await refineRes.text()));
+            const refineJson = await refineRes.json();
+            refinedTranscript = refineJson.choices[0].message.content.trim();
+          } else {
+            refinedTranscript = "(음성 전사 내용 없음)";
+          }
 
           const chartUserContent = `아래는 ${session.profession.toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
             session.memo ? `\n\n[추가 수기 메모]\n${session.memo}` : ""
