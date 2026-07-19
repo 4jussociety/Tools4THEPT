@@ -98,6 +98,59 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
     message: '내용을 확인하고 수정한 뒤 저장해 주세요.',
   });
 
+  // 데이터 동적 변경을 위한 useEffect 추가 (세션 전환 시 폼 상태 리셋)
+  useEffect(() => {
+    const currentChartData = sessionResult.chart_data || {};
+    const currentMt = currentChartData.manual_therapy_record || {};
+    const currentCr = currentChartData.clinical_record || {};
+    const currentInferredDiag =
+      currentCr.assessment?.therapist_diagnosis ||
+      currentCr.assessment?.ai_diagnosis_inferred ||
+      '';
+
+    setClientName(sessionResult.client_name || '');
+    setChartNumber(sessionResult.chart_number || '');
+    setExecutionDate(sessionResult.execution_date || new Date().toISOString().substring(0, 10));
+    setDiagnosis(currentMt.diagnosis || currentInferredDiag);
+    setTherapistName(currentMt.therapist_name || '');
+    setCumulativeCount(
+      currentMt.cumulative_count !== undefined && currentMt.cumulative_count !== null
+        ? currentMt.cumulative_count
+        : ''
+    );
+    setSelectedTechniques(currentMt.techniques?.selected || []);
+    setTechniqueDetails(currentMt.techniques?.details || '');
+    setSelectedRegions(currentMt.treatment_regions || []);
+
+    const curPreEval = currentMt.evaluation?.pre_treatment || {};
+    const curPostEval = currentMt.evaluation?.post_treatment || {};
+
+    setPreVas(
+      curPreEval.pain_scale !== undefined && curPreEval.pain_scale !== null
+        ? curPreEval.pain_scale
+        : 5
+    );
+    setPreRom(curPreEval.rom_and_function || '');
+    setPreSymptoms(curPreEval.symptoms || '');
+
+    setPostVas(
+      curPostEval.pain_scale !== undefined && curPostEval.pain_scale !== null
+        ? curPostEval.pain_scale
+        : 3
+    );
+    setPostRom(curPostEval.rom_and_function_changes || '');
+    setPostReaction(curPostEval.client_reaction || '');
+
+    const curOverall = currentMt.overall_effect || {};
+    setOverallRating(curOverall.rating || '');
+    setOverallDetails(curOverall.details || '');
+
+    setSaveStatus({
+      type: 'info',
+      message: '과거 진료기록을 불러왔습니다. 수정 후 저장할 수 있습니다.',
+    });
+  }, [sessionResult]);
+
   const toggleTechnique = (tech: string) => {
     setSelectedTechniques((prev) =>
       prev.includes(tech) ? prev.filter((t) => t !== tech) : [...prev, tech]
@@ -192,200 +245,308 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
   };
 
   return (
-    <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm text-gray-800 text-xs font-sans max-w-full">
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm space-y-5 text-gray-800 text-xs font-sans max-w-full">
       {/* Header */}
-      <div className="text-center border-b-2 border-gray-900 pb-1 mb-3">
-        <h2 className="text-base font-bold text-gray-900 tracking-wide">도수재활세션 기록지</h2>
-        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Manual Rehab Session Record</p>
+      <div className="text-center border-b border-slate-200 pb-3 mb-4">
+        <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+          <span>💆‍♂️ 도수재활세션 기록지</span>
+        </h2>
+        <p className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Manual Rehabilitation Session Record</p>
       </div>
 
-        {/* 1. 고객 정보 (1줄 6열 정렬) */}
-        <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">1. 고객 정보</h3>
-          <div className="grid grid-cols-6 border-t border-l border-gray-300">
-            <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">고객명</div>
-            <div className="p-1 border-r border-b border-gray-300">
-              <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
-            </div>
-            <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">차트번호</div>
-            <div className="p-1 border-r border-b border-gray-300">
-              <input type="text" value={chartNumber} onChange={(e) => setChartNumber(e.target.value)} className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
-            </div>
-            <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">시행일</div>
-            <div className="p-1 border-r border-b border-gray-300">
-              <input type="date" value={executionDate} onChange={(e) => setExecutionDate(e.target.value)} className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
-            </div>
-
-            <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">진단명</div>
-            <div className="col-span-5 p-1 border-r border-b border-gray-300">
-              <input type="text" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} placeholder="진단명 입력" className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
-            </div>
+      {/* 1. 고객 정보 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3.5 shadow-sm">
+        <h3 className="font-bold text-slate-900 border-l-2 border-indigo-500 pl-2 text-[11px] uppercase tracking-wider">1. 고객 기본 정보</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">고객명</label>
+            <input 
+              type="text" 
+              value={clientName} 
+              onChange={(e) => setClientName(e.target.value)} 
+              className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2 outline-none font-bold text-slate-800 transition" 
+            />
           </div>
-        </div>
-
-        {/* 2. 도수재활세션 시행 및 횟수 */}
-        <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">2. 도수재활세션 시행 및 횟수</h3>
-          <div className="grid grid-cols-4 border-t border-l border-gray-300">
-            <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">시행자 성명</div>
-            <div className="p-1 border-r border-b border-gray-300">
-              <input type="text" value={therapistName} onChange={(e) => setTherapistName(e.target.value)} placeholder="강사 성명" className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
-            </div>
-            <div className="bg-gray-50 font-semibold text-gray-700 p-1 text-center border-r border-b border-gray-300 flex items-center justify-center">연도 누적 횟수</div>
-            <div className="p-1 border-r border-b border-gray-300 flex items-center gap-1">
-              <input type="number" min="0" value={cumulativeCount} onChange={(e) => setCumulativeCount(e.target.value === '' ? '' : Number(e.target.value))} placeholder="누적" className="w-full bg-transparent px-1 border border-transparent focus:border-indigo-500 focus:bg-gray-100 rounded outline-none" />
-              <span>회</span>
-            </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">차트번호</label>
+            <input 
+              type="text" 
+              value={chartNumber} 
+              onChange={(e) => setChartNumber(e.target.value)} 
+              className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2 outline-none font-bold text-slate-800 transition" 
+            />
           </div>
-        </div>
-
-        {/* 3. 시행기법 */}
-        <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">3. 시행기법</h3>
-          <div className="grid grid-cols-4 gap-1 py-1">
-            {availableTechniques.map((tech) => (
-              <label key={tech} className="flex items-center gap-1 cursor-pointer select-none text-[11px]">
-                <input
-                  type="checkbox"
-                  checked={selectedTechniques.includes(tech)}
-                  onChange={() => toggleTechnique(tech)}
-                  className="rounded accent-indigo-600"
-                />
-                <span>{tech}</span>
-              </label>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="font-semibold text-gray-700 whitespace-nowrap">구체적 기법:</span>
-            <input
-              type="text"
-              value={techniqueDetails}
-              onChange={(e) => setTechniqueDetails(e.target.value)}
-              placeholder="구체적인 시행 기술이나 프로토콜 입력"
-              className="flex-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs outline-none focus:border-indigo-500"
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">시행일자</label>
+            <input 
+              type="date" 
+              value={executionDate} 
+              onChange={(e) => setExecutionDate(e.target.value)} 
+              className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2 outline-none font-bold text-slate-800 transition" 
             />
           </div>
         </div>
-
-        {/* 4. 시행부위 */}
         <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">4. 시행부위</h3>
-          <div className="grid grid-cols-5 gap-1 py-1">
-            {availableRegions.map((reg) => (
-              <label key={reg} className="flex items-center gap-1 cursor-pointer select-none text-[11px]">
+          <label className="block text-[10px] font-bold text-slate-500 mb-1">임상 진단명 / 적용 부위</label>
+          <input 
+            type="text" 
+            value={diagnosis} 
+            onChange={(e) => setDiagnosis(e.target.value)} 
+            placeholder="상담 또는 분석에 의한 진단명을 입력하세요..." 
+            className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2.5 outline-none font-bold text-slate-800 transition" 
+          />
+        </div>
+      </div>
+
+      {/* 2. 도수재활세션 시행 및 횟수 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3.5 shadow-sm">
+        <h3 className="font-bold text-slate-900 border-l-2 border-indigo-500 pl-2 text-[11px] uppercase tracking-wider">2. 세션 카운트 정보</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">시행 담당자</label>
+            <input 
+              type="text" 
+              value={therapistName} 
+              onChange={(e) => setTherapistName(e.target.value)} 
+              placeholder="담당 강사/치료사 성명" 
+              className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2 outline-none font-bold text-slate-800 transition" 
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">연도 누적 횟수</label>
+            <div className="flex items-center gap-2">
+              <input 
+                type="number" 
+                min="0" 
+                value={cumulativeCount} 
+                onChange={(e) => setCumulativeCount(e.target.value === '' ? '' : Number(e.target.value))} 
+                placeholder="0" 
+                className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2 outline-none font-bold text-slate-800 transition text-right" 
+              />
+              <span className="font-bold text-slate-500">회차</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. 시행기법 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3.5 shadow-sm">
+        <h3 className="font-bold text-slate-900 border-l-2 border-indigo-500 pl-2 text-[11px] uppercase tracking-wider">3. 임상 적용 기법</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {availableTechniques.map((tech) => {
+            const isChecked = selectedTechniques.includes(tech);
+            return (
+              <label 
+                key={tech} 
+                className={clsx(
+                  "border rounded-xl p-2.5 flex items-center gap-2 cursor-pointer transition select-none font-bold",
+                  isChecked 
+                    ? "border-indigo-500 bg-indigo-50/40 text-indigo-900" 
+                    : "border-slate-200 hover:bg-slate-50 text-slate-600"
+                )}
+              >
                 <input
                   type="checkbox"
-                  checked={selectedRegions.includes(reg)}
-                  onChange={() => toggleRegion(reg)}
+                  checked={isChecked}
+                  onChange={() => toggleTechnique(tech)}
                   className="rounded accent-indigo-600"
                 />
-                <span>{reg}</span>
+                <span className="text-[11px]">{tech}</span>
               </label>
-            ))}
+            );
+          })}
+        </div>
+        <div className="pt-2">
+          <label className="block text-[10px] font-bold text-slate-500 mb-1">상세 프로토콜 및 수기 테크닉 세부내용</label>
+          <input
+            type="text"
+            value={techniqueDetails}
+            onChange={(e) => setTechniqueDetails(e.target.value)}
+            placeholder="예: 경추 3-4번 관절 가동술 3세트 및 승모근 이완술 실시..."
+            className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2.5 outline-none font-medium text-slate-800 transition"
+          />
+        </div>
+      </div>
+
+      {/* 4. 시행부위 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 shadow-sm">
+        <h3 className="font-bold text-slate-900 border-l-2 border-indigo-500 pl-2 text-[11px] uppercase tracking-wider">4. 세션 타겟 부위</h3>
+        <div className="flex flex-wrap gap-1.5">
+          {availableRegions.map((reg) => {
+            const isChecked = selectedRegions.includes(reg);
+            return (
+              <button
+                key={reg}
+                type="button"
+                onClick={() => toggleRegion(reg)}
+                className={clsx(
+                  "px-3 py-1.5 rounded-full font-bold text-[10px] border transition cursor-pointer",
+                  isChecked 
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" 
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                {reg}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 5. 세션효과 평가 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4 shadow-sm">
+        <h3 className="font-bold text-slate-900 border-l-2 border-indigo-500 pl-2 text-[11px] uppercase tracking-wider">5. 세션 효과 평가</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Pre */}
+          <div className="border border-amber-200 rounded-xl p-3 bg-amber-50/10 space-y-3">
+            <h4 className="font-black text-amber-800 text-[11px] border-b border-amber-100 pb-1.5 flex items-center gap-1.5">
+              <span>🟠 세션 전 (Pre-Session)</span>
+            </h4>
+            <div>
+              <div className="flex justify-between text-[11px] font-bold text-amber-900 mb-1">
+                <span>통증 스케일 (VAS)</span>
+                <span className="font-black">{preVas} / 10</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="10" 
+                step="1" 
+                value={preVas} 
+                onChange={(e) => setPreVas(Number(e.target.value))} 
+                className="w-full accent-amber-600 cursor-pointer" 
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">관절 가동 범위 (ROM) 및 제한 상태</label>
+              <textarea 
+                rows={2} 
+                value={preRom} 
+                onChange={(e) => setPreRom(e.target.value)} 
+                placeholder="예: 굴곡 시 통증 발현, ROM 45도 제한" 
+                className="w-full p-2 border border-slate-200 rounded-lg bg-white outline-none focus:border-amber-400 font-medium text-slate-700 transition" 
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">주요 자각 증상</label>
+              <textarea 
+                rows={2} 
+                value={preSymptoms} 
+                onChange={(e) => setPreSymptoms(e.target.value)} 
+                placeholder="예: 아침 기상 시 목 부위 뻣뻣함 호소" 
+                className="w-full p-2 border border-slate-200 rounded-lg bg-white outline-none focus:border-amber-400 font-medium text-slate-700 transition" 
+              />
+            </div>
+          </div>
+
+          {/* Post */}
+          <div className="border border-emerald-200 rounded-xl p-3 bg-emerald-50/10 space-y-3">
+            <h4 className="font-black text-emerald-800 text-[11px] border-b border-emerald-100 pb-1.5 flex items-center gap-1.5">
+              <span>🟢 세션 후 (Post-Session)</span>
+            </h4>
+            <div>
+              <div className="flex justify-between text-[11px] font-bold text-emerald-900 mb-1">
+                <span>통증 스케일 (VAS)</span>
+                <span className="font-black">{postVas} / 10</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="10" 
+                step="1" 
+                value={postVas} 
+                onChange={(e) => setPostVas(Number(e.target.value))} 
+                className="w-full accent-emerald-600 cursor-pointer" 
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">가동 범위 변화 및 호전도</label>
+              <textarea 
+                rows={2} 
+                value={postRom} 
+                onChange={(e) => setPostRom(e.target.value)} 
+                placeholder="예: 세션 후 굴곡 통증 소실, ROM 80도로 회복" 
+                className="w-full p-2 border border-slate-200 rounded-lg bg-white outline-none focus:border-emerald-400 font-medium text-slate-700 transition" 
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">고객 피드백 & 특이사항</label>
+              <textarea 
+                rows={2} 
+                value={postReaction} 
+                onChange={(e) => setPostReaction(e.target.value)} 
+                placeholder="예: 목 회전 시 찌릿한 통증이 많이 완화되었다고 하심" 
+                className="w-full p-2 border border-slate-200 rounded-lg bg-white outline-none focus:border-emerald-400 font-medium text-slate-700 transition" 
+              />
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* 5. 세션효과 평가 */}
-        <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">5. 세션효과 평가 (세션 전 / 세션 후 비교)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Pre */}
-            <div className="border border-indigo-200 rounded p-2 bg-indigo-50/30">
-              <h4 className="font-bold text-indigo-900 border-b border-indigo-200 pb-0.5 mb-2">세션 전 (Pre-Session)</h4>
-              <div className="mb-2">
-                <div className="flex justify-between text-xs font-medium mb-1">
-                  <span>통증 정도 (VAS Score: 0~10)</span>
-                  <span className="font-bold text-indigo-600">{preVas}점</span>
-                </div>
-                <input type="range" min="0" max="10" step="1" value={preVas} onChange={(e) => setPreVas(Number(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
-              </div>
-              <div className="mb-2">
-                <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">관절가동범위 및 기능 상태</label>
-                <textarea rows={2} value={preRom} onChange={(e) => setPreRom(e.target.value)} placeholder="세션 전 ROM 제한 상태나 기능 검사 수치 입력" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-indigo-500 text-xs" />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">주요 증상 및 제한사항</label>
-                <textarea rows={2} value={preSymptoms} onChange={(e) => setPreSymptoms(e.target.value)} placeholder="고객의 주호소 증상 및 일상생활 제한 요인" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-indigo-500 text-xs" />
-              </div>
-            </div>
-
-            {/* Post */}
-            <div className="border border-emerald-200 rounded p-2 bg-emerald-50/30">
-              <h4 className="font-bold text-emerald-900 border-b border-emerald-200 pb-0.5 mb-2">세션 후 (Post-Session)</h4>
-              <div className="mb-2">
-                <div className="flex justify-between text-xs font-medium mb-1">
-                  <span>통증 정도 (VAS Score: 0~10)</span>
-                  <span className="font-bold text-emerald-600">{postVas}점</span>
-                </div>
-                <input type="range" min="0" max="10" step="1" value={postVas} onChange={(e) => setPostVas(Number(e.target.value))} className="w-full accent-emerald-600 cursor-pointer" />
-              </div>
-              <div className="mb-2">
-                <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">관절가동범위 및 기능 변화</label>
-                <textarea rows={2} value={postRom} onChange={(e) => setPostRom(e.target.value)} placeholder="세션 후 즉각적인 ROM 증가 수치 및 기능 호전 변화" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-emerald-500 text-xs" />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-700 mb-0.5">고객 주관적 반응 및 호전도</label>
-                <textarea rows={2} value={postReaction} onChange={(e) => setPostReaction(e.target.value)} placeholder="세션 후 고객이 직접 표현한 피드백 및 상태" className="w-full p-1.5 border border-gray-200 rounded bg-white outline-none focus:border-emerald-500 text-xs" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 6. 종합 세션효과 평가 */}
-        <div>
-          <h3 className="font-bold text-gray-900 border-b border-gray-700 pb-0.5 mb-1 text-[11px]">6. 종합 세션효과 평가</h3>
-          <div className="flex flex-wrap gap-3 py-1">
-            {['현저한 호전', '호전', '변화 없음', '악화', '평가 어려움'].map((rating) => (
-              <label key={rating} className="flex items-center gap-1 cursor-pointer text-[11px]">
+      {/* 6. 종합 세션효과 평가 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3.5 shadow-sm">
+        <h3 className="font-bold text-slate-900 border-l-2 border-indigo-500 pl-2 text-[11px] uppercase tracking-wider">6. 종합 임상 평가</h3>
+        <div className="flex flex-wrap gap-2 py-1">
+          {['현저한 호전', '호전', '변화 없음', '악화', '평가 어려움'].map((rating) => {
+            const isChecked = overallRating === rating;
+            return (
+              <label 
+                key={rating} 
+                className={clsx(
+                  "border rounded-xl px-3 py-2 flex items-center gap-1.5 cursor-pointer transition select-none font-bold text-[11px]",
+                  isChecked 
+                    ? "border-indigo-500 bg-indigo-50/40 text-indigo-900 font-black" 
+                    : "border-slate-200 hover:bg-slate-50 text-slate-600"
+                )}
+              >
                 <input
                   type="radio"
                   name="overall_rating"
                   value={rating}
-                  checked={overallRating === rating}
+                  checked={isChecked}
                   onChange={(e) => setOverallRating(e.target.value)}
                   className="accent-indigo-600"
                 />
-                <span>{rating}</span>
               </label>
-            ))}
-          </div>
-          <input
-            type="text"
-            value={overallDetails}
-            onChange={(e) => setOverallDetails(e.target.value)}
-            placeholder="종합 평가 소견 및 향후 세션 방향"
-            className="w-full mt-1 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500"
-          />
+            );
+          })}
         </div>
-
-        {/* Save Action Bar */}
-        <div className="flex items-center justify-between border-t border-gray-200 pt-3 mt-4">
-          <div className="flex items-center gap-1.5 text-xs">
-            {saveStatus.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
-            {saveStatus.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-500" />}
-            <span
-              className={
-                saveStatus.type === 'success'
-                  ? 'text-emerald-600 font-medium'
-                  : saveStatus.type === 'error'
-                  ? 'text-rose-600 font-medium'
-                  : 'text-gray-500'
-              }
-            >
-              {saveStatus.message}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold px-4 py-2 rounded-lg transition shadow-sm disabled:opacity-50"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span>도수재활세션 기록지 저장하기</span>
-          </button>
-        </div>
+        <input
+          type="text"
+          value={overallDetails}
+          onChange={(e) => setOverallDetails(e.target.value)}
+          placeholder="종합 평가 소견 및 다음 세션 가이드를 간략히 적어주세요."
+          className="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg p-2.5 outline-none font-medium text-slate-800 transition"
+        />
       </div>
-    );
+
+      {/* Save Action Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-200 pt-4 gap-3">
+        <div className="flex items-center gap-1.5 text-[11px]">
+          {saveStatus.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+          {saveStatus.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />}
+          <span
+            className={clsx(
+              "font-bold",
+              saveStatus.type === 'success' && 'text-emerald-600',
+              saveStatus.type === 'error' && 'text-rose-600',
+              saveStatus.type === 'info' && 'text-indigo-600'
+            )}
+          >
+            {saveStatus.message}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold px-5 py-3 rounded-xl transition shadow-md disabled:opacity-50 cursor-pointer text-xs"
+        >
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          <span>도수재활세션 기록지 저장하기</span>
+        </button>
+      </div>
+    </div>
+  );
 };

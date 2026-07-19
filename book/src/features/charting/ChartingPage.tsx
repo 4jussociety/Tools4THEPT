@@ -56,6 +56,12 @@ export default function ChartingPage() {
   // 중앙 영역 결과 확인용 서브 탭 상태
   const [activeTab, setActiveTab] = useState<'manual-therapy' | 'soap'>('manual-therapy');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>(undefined);
+
+  const handleStartNewSession = () => {
+    setSelectedSessionId(undefined);
+    setSessionResult(null);
+  };
 
   return (
     <div className="max-w-8xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -73,6 +79,15 @@ export default function ChartingPage() {
             환자 히스토리와 오늘 세션의 AI 분석 결과(SOAP 차트, 재활기록, 가이드)를 원화면 스플릿 뷰로 즉시 모니터링합니다.
           </p>
         </div>
+        {selectedSessionId && (
+          <button
+            onClick={handleStartNewSession}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+            <span>새 세션 시작 (분석하기)</span>
+          </button>
+        )}
       </div>
 
       {/* Main Grid Container: 3분할 스플릿 뷰 */}
@@ -85,7 +100,15 @@ export default function ChartingPage() {
               <span>최근 차팅 히스토리 퀵패널</span>
             </h3>
             {selectedClientId ? (
-              <ClientChartingHistoryPanel clientId={selectedClientId} />
+              <ClientChartingHistoryPanel 
+                clientId={selectedClientId} 
+                selectedSessionId={selectedSessionId}
+                onSelectSession={(res) => {
+                  setSessionResult(res);
+                  setSelectedSessionId(res.session_id);
+                  setActiveTab('manual-therapy');
+                }}
+              />
             ) : (
               <div className="py-12 text-center text-xs text-gray-400 font-bold bg-gray-50 rounded-xl border border-dashed border-gray-200">
                 <p>선택된 고객이 없습니다.</p>
@@ -97,25 +120,43 @@ export default function ChartingPage() {
 
         {/* [2] 중앙: 녹음 등록 & 오늘의 임상 분석 결과 (lg:col-span-5) */}
         <div className="lg:col-span-5 space-y-4">
-          {/* 오디오 업로드 폼 */}
-          <AudioUploadForm
-            clientId={selectedClientId}
-            appointmentId={appointmentId}
-            therapyDate={therapyDate}
-            therapyTime={therapyTime}
-            onAnalysisCompleted={(res) => {
-              setSessionResult(res);
-              setActiveTab('manual-therapy');
-            }}
-            onClientSelected={(id) => {
-              setSelectedClientId(id);
-            }}
-          />
+          {selectedSessionId ? (
+            <div className="bg-amber-50/50 border border-amber-200 text-amber-900 text-xs p-3.5 rounded-xl shadow-sm flex items-center justify-between font-bold">
+              <div className="flex items-center gap-2">
+                <span>📁</span>
+                <span>이전 AI 차팅 기록을 조회/수정 중입니다.</span>
+              </div>
+              <button
+                onClick={handleStartNewSession}
+                className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg transition"
+              >
+                닫고 새 분석 시작
+              </button>
+            </div>
+          ) : (
+            /* 오디오 업로드 폼 */
+            <AudioUploadForm
+              clientId={selectedClientId}
+              appointmentId={appointmentId}
+              therapyDate={therapyDate}
+              therapyTime={therapyTime}
+              onAnalysisCompleted={(res) => {
+                setSessionResult(res);
+                setSelectedSessionId(res.session_id);
+                setActiveTab('manual-therapy');
+              }}
+              onClientSelected={(id) => {
+                setSelectedClientId(id);
+              }}
+            />
+          )}
 
           {/* 오늘 분석 결과 영역 */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="flex justify-between items-center border-b border-gray-200 bg-gray-50/50 px-4 py-2">
-              <span className="text-xs font-black text-gray-900">오늘의 진료/재활 결과</span>
+              <span className="text-xs font-black text-gray-900">
+                {selectedSessionId ? '선택된 차팅 결과 상세' : '오늘의 진료/재활 결과'}
+              </span>
               <div className="flex bg-slate-200/80 p-0.5 rounded-lg">
                 <button
                   onClick={() => setActiveTab('manual-therapy')}
@@ -148,7 +189,22 @@ export default function ChartingPage() {
                   <p className="text-[10px] text-gray-400">분석이 완성되면 도수재활세션 기록지와 임상 SOAP 차트가 이곳에 나타납니다.</p>
                 </div>
               ) : activeTab === 'manual-therapy' ? (
-                <ManualTherapyRecordForm sessionResult={sessionResult} />
+                <ManualTherapyRecordForm 
+                  sessionResult={sessionResult} 
+                  onSaved={(updatedRecord) => {
+                    // 세션의 chart_data를 즉시 로컬 상태와 동기화하여 저장 후 변경 데이터 유지 보장
+                    setSessionResult(prev => {
+                      if (!prev) return null;
+                      return {
+                        ...prev,
+                        chart_data: {
+                          ...prev.chart_data,
+                          manual_therapy_record: updatedRecord,
+                        }
+                      };
+                    });
+                  }}
+                />
               ) : (
                 <ClinicalSoapChart
                   chartData={sessionResult.chart_data}
