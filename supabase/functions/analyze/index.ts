@@ -695,10 +695,8 @@ Deno.serve(async (req) => {
             model: "stt-async-v4",
             file_id: fileId,
             webhook_url: webhookUrl,
-            config: {
-              enable_speaker_diarization: true,
-              language_hints: ["ko"],
-            },
+            enable_speaker_diarization: true,
+            language_hints: ["ko"],
           }),
         });
 
