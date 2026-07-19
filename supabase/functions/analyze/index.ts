@@ -679,10 +679,8 @@ Deno.serve(async (req) => {
         const { id: fileId } = await sonioxUploadRes.json();
         console.log(`[Soniox] Upload successful. File ID: ${fileId}`);
 
-        // Call Soniox asynchronous transcription with Webhook url
-        const rawWebhook = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}&file_ext=${file_ext}`;
-        const webhookUrl = encodeURIComponent(rawWebhook);
-        console.log(`[Soniox] Creating async transcription with Webhook: ${decodeURIComponent(webhookUrl)}`);
+        const webhookUrl = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}&file_ext=${file_ext}`;
+        console.log(`[Soniox] Creating async transcription with Webhook: ${webhookUrl}`);
         
         const transRes = await fetch("https://api.soniox.com/v1/transcriptions", {
           method: "POST",
@@ -693,10 +691,10 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             model: "stt-async-v4",
             file_id: fileId,
+            webhook_url: webhookUrl,
             config: {
               enable_speaker_diarization: true,
               language_hints: ["ko"],
-              webhook_url: webhookUrl,
             },
           }),
         });
