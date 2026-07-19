@@ -298,8 +298,8 @@ Deno.serve(async (req) => {
       if (status === "completed") {
         let transcriptData: any = null;
         try {
-          // Get transcript from Soniox API
-          const sonioxRes = await fetch(`https://api.soniox.com/v1/transcriptions/${transcriptionId}`, {
+          // Get transcript from Soniox API (/transcript 엔드포인트로 실제 전사 데이터 조회)
+          const sonioxRes = await fetch(`https://api.soniox.com/v1/transcriptions/${transcriptionId}/transcript`, {
             headers: {
               "Authorization": `Bearer ${sonioxApiKey}`,
             },
@@ -348,49 +348,49 @@ Deno.serve(async (req) => {
             refinedTranscript = "(음성 전사 내용 없음)";
           }
 
-          // 2) Generate SOAP Chart Data
+          // 2) & 3) SOAP Chart Data + Patient Guide (병렬 처리로 Edge Function 타임아웃 방지)
           const chartUserContent = `아래는 ${(session.profession || 'pt').toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
             session.memo ? `\n\n[추가 수기 메모]\n${session.memo}` : ""
           }`;
           
-          const chartRes = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openaiApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [
-                { role: "system", content: getChartPrompt(session.profession) },
-                { role: "user", content: chartUserContent },
-              ],
-              temperature: 0.1,
-              response_format: { type: "json_object" },
+          const [chartRes, guideRes] = await Promise.all([
+            fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${openaiApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: getChartPrompt(session.profession) },
+                  { role: "user", content: chartUserContent },
+                ],
+                temperature: 0.1,
+                response_format: { type: "json_object" },
+              }),
             }),
-          });
-          if (!chartRes.ok) throw new Error("OpenAI SOAP Chart error: " + (await chartRes.text()));
-          const chartJson = await chartRes.json();
-          const chartData = JSON.parse(chartJson.choices[0].message.content.trim());
+            fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${openaiApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: getGuidePrompt(session.profession) },
+                  { role: "user", content: chartUserContent },
+                ],
+                temperature: 0.3,
+              }),
+            }),
+          ]);
 
-          // 3) Generate Patient Guide
-          const guideRes = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openaiApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [
-                { role: "system", content: getGuidePrompt(session.profession) },
-                { role: "user", content: chartUserContent },
-              ],
-              temperature: 0.3,
-            }),
-          });
+          if (!chartRes.ok) throw new Error("OpenAI SOAP Chart error: " + (await chartRes.text()));
           if (!guideRes.ok) throw new Error("OpenAI Patient Guide error: " + (await guideRes.text()));
-          const guideJson = await guideRes.json();
+          const [chartJson, guideJson] = await Promise.all([chartRes.json(), guideRes.json()]);
+          const chartData = JSON.parse(chartJson.choices[0].message.content.trim());
           const guideContent = guideJson.choices[0].message.content.trim();
 
           // Write results
@@ -424,7 +424,8 @@ Deno.serve(async (req) => {
         } finally {
           // Cleanup audio file from storage (user requested deletion after analysis)
           try {
-            const filePath = `${session.user_id}/${sessionId}_processed_audio.wav`;
+            const fileExtParam = url.searchParams.get("file_ext") || "wav";
+            const filePath = `${session.user_id}/${sessionId}_processed_audio.${fileExtParam}`;
             console.log(`[Cleanup] Deleting storage file: ${filePath}`);
             await adminClient.storage.from("audio-records").remove([filePath]);
           } catch (storageErr) {
@@ -461,8 +462,9 @@ Deno.serve(async (req) => {
         await refundQuota();
 
         // Delete audio from storage even if failed
-        try {
-          const filePath = `${session.user_id}/${sessionId}_processed_audio.wav`;
+         try {
+          const fileExtFailed = url.searchParams.get("file_ext") || "wav";
+          const filePath = `${session.user_id}/${sessionId}_processed_audio.${fileExtFailed}`;
           await adminClient.storage.from("audio-records").remove([filePath]);
         } catch (err) {}
       }
@@ -700,6 +702,10 @@ Deno.serve(async (req) => {
           }),
         });
 
+        if (!transRes.ok) {
+          const errText = await transRes.text();
+          throw new Error(`Soniox transcription creation failed: ${transRes.status} - ${errText}`);
+        }
         const transData = await transRes.json();
         const jobId = transData.id;
         console.log(`[Soniox] Transcription task created: ${jobId}`);
