@@ -296,6 +296,7 @@ Deno.serve(async (req) => {
       };
 
       if (status === "completed") {
+        let transcriptData: any = null;
         try {
           // Get transcript from Soniox API
           const sonioxRes = await fetch(`https://api.soniox.com/v1/transcriptions/${transcriptionId}`, {
@@ -309,7 +310,7 @@ Deno.serve(async (req) => {
             throw new Error(`Soniox fetch failed: ${sonioxRes.status} - ${errText}`);
           }
 
-          const transcriptData = await sonioxRes.json();
+          transcriptData = await sonioxRes.json();
           const segments = groupTokensBySpeaker(transcriptData);
           const rawFormatted = formatDiarizedTranscript(segments);
 
@@ -348,7 +349,7 @@ Deno.serve(async (req) => {
           }
 
           // 2) Generate SOAP Chart Data
-          const chartUserContent = `아래는 ${session.profession.toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
+          const chartUserContent = `아래는 ${(session.profession || 'pt').toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
             session.memo ? `\n\n[추가 수기 메모]\n${session.memo}` : ""
           }`;
           
