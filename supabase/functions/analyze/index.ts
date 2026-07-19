@@ -623,31 +623,20 @@ Deno.serve(async (req) => {
 
         if (updateData && updateData.length > 0) {
           quotaDeducted = true;
-          console.log(`[Quota] Deducted ${deductAmount} for ${user.email} (${tier}). Used: ${prof.quota_used} -> ${prof.quota_used + deductAmount}`);
           break;
         }
       }
 
       if (!quotaDeducted) {
-        return new Response(JSON.stringify({ detail: "동시 요청이 감지되었습니다. 잠시 후 다시 시도해 주세요." }), {
-          status: 409,
+        return new Response(JSON.stringify({ detail: "시스템 오류: 크레딧 차감에 실패했습니다." }), {
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Update session status to processing
-      await adminClient
-        .from("sessions")
-        .update({ status: "processing" })
-        .eq("id", session_id);
-
-      // Download audio file from Storage
-      const ext = file_ext || 'wav';
-      const storagePath = `${user.id}/${session_id}_processed_audio.${ext}`;
-      console.log(`[Storage] Downloading audio from bucket: audio-records, path: ${storagePath}`);
-      
-      const { data: audioBlob, error: downloadError } = await adminClient
-        .storage
+      // Download audio file from storage
+      const storagePath = `${user.id}/${session_id}_processed_audio.${file_ext}`;
+      const { data: audioBlob, error: downloadError } = await adminClient.storage
         .from("audio-records")
         .download(storagePath);
 
@@ -666,9 +655,9 @@ Deno.serve(async (req) => {
       try {
         console.log(`[Soniox] Uploading audio to Soniox Files API (Multipart)...`);
         const formData = new FormData();
-        const mimeType = getMimeTypeByExt(ext);
+        const mimeType = getMimeTypeByExt(file_ext);
         const fileBlob = new Blob([audioBlob], { type: mimeType });
-        formData.append("file", fileBlob, `audio.${ext}`);
+        formData.append("file", fileBlob, `audio.${file_ext}`);
 
         const sonioxUploadRes = await fetch("https://api.soniox.com/v1/files", {
           method: "POST",
@@ -678,17 +667,18 @@ Deno.serve(async (req) => {
           body: formData,
         });
 
-        if (!sonioxUploadRes.ok) {
+        if (sonioxUploadRes.status !== 201) {
           const errText = await sonioxUploadRes.text();
-          throw new Error(`Soniox file upload failed: ${sonioxUploadRes.status} - ${errText}`);
+          throw new Error(`Sonox file upload failed: ${sonioxUploadRes.status} - ${errText}`);
         }
 
         const { id: fileId } = await sonioxUploadRes.json();
         console.log(`[Soniox] Upload successful. File ID: ${fileId}`);
 
         // Call Soniox asynchronous transcription with Webhook url
-        const webhookUrl = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}&file_ext=${ext}`;
-        console.log(`[Soniox] Creating async transcription with Webhook: ${webhookUrl}`);
+        const rawWebhook = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}&file_ext=${file_ext}`;
+        const webhookUrl = encodeURIComponent(rawWebhook);
+        console.log(`[Sonox] Creating async transcription with Webhook: ${decodeURIComponent(webhookUrl)}`);
         
         const transRes = await fetch("https://api.soniox.com/v1/transcriptions", {
           method: "POST",
@@ -707,9 +697,10 @@ Deno.serve(async (req) => {
           }),
         });
 
-        if (!transRes.ok) {
+        if (transRes.status !== 202) {
           const errText = await transRes.text();
-          throw new Error(`Soniox transcription creation failed: ${transRes.status} - ${errText}`);
+          const status = transRes.status;
+          throw new Error(`Sonox transcription creation failed: ${status} - ${errText}`);
         }
 
         const transData = await transRes.json();
