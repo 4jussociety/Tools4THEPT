@@ -704,7 +704,6 @@ Deno.serve(async (req) => {
         const transData = await transRes.json();
         const jobId = transData.id;
         console.log(`[Soniox] Transcription task created: ${jobId}`);
-        // Soniox 작업을 웹훅으로 위임하고 즉시 202 응답 반환
         return new Response(JSON.stringify({
           status: "accepted",
           instant: false,
@@ -714,93 +713,6 @@ Deno.serve(async (req) => {
           status: 202,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${openaiApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: [
-                  { role: "system", content: getGuidePrompt(session.profession) },
-                  { role: "user", content: chartUserContent },
-                ],
-                temperature: 0.3,
-              }),
-            })
-          ]);
-
-          if (!chartResponse.ok) throw new Error("OpenAI SOAP Chart error: " + (await chartResponse.text()));
-          if (!guideResponse.ok) throw new Error("OpenAI Patient Guide error: " + (await guideResponse.text()));
-
-          const chartJson = await chartResponse.json();
-          const guideJson = await guideResponse.json();
-
-          const chartData = JSON.parse(chartJson.choices[0].message.content.trim());
-          const guideContent = guideJson.choices[0].message.content.trim();
-
-          // DB 저장
-          const { error: resultsErr } = await adminClient.from("results").insert({
-            session_id: session_id,
-            raw_transcript: rawFormatted,
-            refined_transcript: refinedTranscript,
-            chart_data: chartData,
-            guide_content: guideContent,
-          });
-          if (resultsErr) throw resultsErr;
-
-          await adminClient.from("sessions").update({ status: "completed" }).eq("id", session_id);
-          console.log(`[Instant Completion] Session ${session_id} successfully finalized in real-time.`);
-
-          // Storage 파일 삭제
-          try {
-            await adminClient.storage.from("audio-records").remove([storagePath]);
-          } catch (e) {}
-
-          // Soniox 자원 정리
-          try {
-            await fetch(`https://api.soniox.com/v1/transcriptions/${jobId}`, {
-              method: "DELETE",
-              headers: { "Authorization": `Bearer ${sonioxApiKey}` },
-            });
-            if (transcriptResult.file_id) {
-              await fetch(`https://api.soniox.com/v1/files/${transcriptResult.file_id}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${sonioxApiKey}` },
-              });
-            }
-          } catch (e) {}
-
-          return new Response(
-            JSON.stringify({
-              status: "success",
-              instant: true,
-              message: "분석이 실시간으로 완료되었습니다.",
-              session_id: session_id,
-            }),
-            {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        }
-
-        // 100초 초과 시 202를 주어 Webhook 백그라운드 위임
-        console.log(`[analyze] Timeout limit reached. Entrusting rest to Webhook callback...`);
-        return new Response(
-          JSON.stringify({
-            status: "accepted",
-            instant: false,
-            message: "분석이 백그라운드에서 진행 중입니다. 완료 시 대시보드에 업데이트됩니다.",
-            session_id: session_id,
-          }),
-          {
-            status: 202,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-
       } catch (err) {
         console.error("[Soniox] Failed during process initialization:", err);
         await adminClient.from("profiles").update({ quota_used: profile.quota_used }).eq("id", user.id);
