@@ -211,24 +211,35 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
         .order('created_at', { ascending: false });
 
       if (selectErr) throw selectErr;
+
       if (!existingList || existingList.length === 0) {
-        throw new Error('해당 세션의 분석 결과 데이터가 존재하지 않습니다.');
+        // results 레코드가 아예 없는 경우: 새로 삽입(Insert)
+        const { error: insertErr } = await supabase
+          .from('results')
+          .insert({
+            session_id: sessionResult.session_id,
+            chart_data: {
+              manual_therapy_record: newRecord
+            }
+          });
+        if (insertErr) throw insertErr;
+      } else {
+        // 이미 존재하는 경우: 최신 레코드를 가져와서 업데이트
+        const targetResult = existingList[0];
+        let updatedChartData = targetResult.chart_data || {};
+        if (typeof updatedChartData === 'string') {
+          updatedChartData = JSON.parse(updatedChartData);
+        }
+
+        updatedChartData.manual_therapy_record = newRecord;
+
+        const { error: updateErr } = await supabase
+          .from('results')
+          .update({ chart_data: updatedChartData })
+          .eq('id', targetResult.id);
+
+        if (updateErr) throw updateErr;
       }
-
-      const targetResult = existingList[0];
-      let updatedChartData = targetResult.chart_data || {};
-      if (typeof updatedChartData === 'string') {
-        updatedChartData = JSON.parse(updatedChartData);
-      }
-
-      updatedChartData.manual_therapy_record = newRecord;
-
-      const { error: updateErr } = await supabase
-        .from('results')
-        .update({ chart_data: updatedChartData })
-        .eq('id', targetResult.id);
-
-      if (updateErr) throw updateErr;
 
       setSaveStatus({
         type: 'success',

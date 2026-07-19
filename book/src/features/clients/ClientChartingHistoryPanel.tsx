@@ -8,9 +8,10 @@ type Props = {
   clientId: string;
   selectedSessionId?: string;
   onSelectSession?: (result: any) => void;
+  refreshKey?: number;
 };
 
-export default function ClientChartingHistoryPanel({ clientId, selectedSessionId, onSelectSession }: Props) {
+export default function ClientChartingHistoryPanel({ clientId, selectedSessionId, onSelectSession, refreshKey }: Props) {
   const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,7 +36,7 @@ export default function ClientChartingHistoryPanel({ clientId, selectedSessionId
 
   useEffect(() => {
     fetchHistory();
-  }, [clientId]);
+  }, [clientId, refreshKey]);
 
   if (isLoading) {
     return (

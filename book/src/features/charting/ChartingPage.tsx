@@ -57,6 +57,7 @@ export default function ChartingPage() {
   const [activeTab, setActiveTab] = useState<'manual-therapy' | 'soap'>('manual-therapy');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>(undefined);
+  const [historyKey, setHistoryKey] = useState<number>(0);
 
   const handleStartNewSession = () => {
     setSelectedSessionId(undefined);
@@ -103,6 +104,7 @@ export default function ChartingPage() {
               <ClientChartingHistoryPanel 
                 clientId={selectedClientId} 
                 selectedSessionId={selectedSessionId}
+                refreshKey={historyKey}
                 onSelectSession={(res) => {
                   setSessionResult(res);
                   setSelectedSessionId(res.session_id);
@@ -144,6 +146,7 @@ export default function ChartingPage() {
                 setSessionResult(res);
                 setSelectedSessionId(res.session_id);
                 setActiveTab('manual-therapy');
+                setHistoryKey(prev => prev + 1); // 신규 업로드 성공 시에도 히스토리 새로고침
               }}
               onClientSelected={(id) => {
                 setSelectedClientId(id);
@@ -203,6 +206,7 @@ export default function ChartingPage() {
                         }
                       };
                     });
+                    setHistoryKey(prev => prev + 1); // 저장 성공 시 히스토리 패널 새로고침
                   }}
                 />
               ) : (
