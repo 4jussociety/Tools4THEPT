@@ -21,7 +21,6 @@ export default function GNB() {
         { label: '예약 관리', href: '/calendar', icon: CalendarDays },
         { label: '고객 관리', href: '/clients', icon: Users },
         { label: 'AI 음성 차팅', href: '/charting', icon: Sparkles },
-        { label: '히스토리', href: '/charting?tab=history', icon: History },
     ]
 
     const displayName = profile?.full_name || profile?.name || user?.email?.split('@')[0] || '치료사'

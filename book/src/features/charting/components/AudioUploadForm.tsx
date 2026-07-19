@@ -11,6 +11,7 @@ interface AudioUploadFormProps {
   therapyTime?: string;
   onAnalysisStarted?: () => void;
   onAnalysisCompleted?: (result: SessionResult) => void;
+  onClientSelected?: (clientId: string | undefined) => void;
 }
 
 export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
@@ -20,6 +21,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   therapyTime,
   onAnalysisStarted,
   onAnalysisCompleted,
+  onClientSelected,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [memo, setMemo] = useState('');
@@ -87,6 +89,13 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
     };
     fetchClients();
   }, []);
+
+  // 1-3. selectedClient 상태 변화 시 상위 컴포넌트로 동기화
+  useEffect(() => {
+    if (onClientSelected) {
+      onClientSelected(selectedClient?.id);
+    }
+  }, [selectedClient, onClientSelected]);
 
   // 2. 외부 props로 전달받은 clientId가 있을 시 자동 선택 처리
   useEffect(() => {

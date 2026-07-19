@@ -43,8 +43,12 @@ function parseTranscript(text: string): ChatMessage[] {
 
 export default function ChartingPage() {
   const [searchParams] = useSearchParams();
-  const clientId = searchParams.get('client_id') || searchParams.get('clientId') || undefined;
-  const initialTab = searchParams.get('tab') as 'upload' | 'manual-therapy' | 'soap' | 'history' | null;
+  
+  // client_id를 상위 상태로 관리하여 실시간 동기화 지원
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(
+    searchParams.get('client_id') || searchParams.get('clientId') || undefined
+  );
+  
   const appointmentId = searchParams.get('appointment_id') || undefined;
   const therapyDate = searchParams.get('date') || undefined;
   const therapyTime = searchParams.get('time') || undefined;
@@ -80,8 +84,8 @@ export default function ChartingPage() {
               <History className="w-4 h-4 text-indigo-500" />
               <span>최근 차팅 히스토리 퀵패널</span>
             </h3>
-            {clientId ? (
-              <ClientChartingHistoryPanel clientId={clientId} />
+            {selectedClientId ? (
+              <ClientChartingHistoryPanel clientId={selectedClientId} />
             ) : (
               <div className="py-12 text-center text-xs text-gray-400 font-bold bg-gray-50 rounded-xl border border-dashed border-gray-200">
                 <p>선택된 고객이 없습니다.</p>
@@ -95,13 +99,16 @@ export default function ChartingPage() {
         <div className="lg:col-span-5 space-y-4">
           {/* 오디오 업로드 폼 */}
           <AudioUploadForm
-            clientId={clientId}
+            clientId={selectedClientId}
             appointmentId={appointmentId}
             therapyDate={therapyDate}
             therapyTime={therapyTime}
             onAnalysisCompleted={(res) => {
               setSessionResult(res);
               setActiveTab('manual-therapy');
+            }}
+            onClientSelected={(id) => {
+              setSelectedClientId(id);
             }}
           />
 
