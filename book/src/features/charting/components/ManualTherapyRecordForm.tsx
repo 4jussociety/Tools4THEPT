@@ -204,15 +204,19 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
     };
 
     try {
-      const { data: existing, error: selectErr } = await supabase
+      const { data: existingList, error: selectErr } = await supabase
         .from('results')
-        .select('chart_data')
+        .select('id, chart_data')
         .eq('session_id', sessionResult.session_id)
-        .single();
+        .order('created_at', { ascending: false });
 
       if (selectErr) throw selectErr;
+      if (!existingList || existingList.length === 0) {
+        throw new Error('해당 세션의 분석 결과 데이터가 존재하지 않습니다.');
+      }
 
-      let updatedChartData = existing?.chart_data || {};
+      const targetResult = existingList[0];
+      let updatedChartData = targetResult.chart_data || {};
       if (typeof updatedChartData === 'string') {
         updatedChartData = JSON.parse(updatedChartData);
       }
@@ -222,7 +226,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
       const { error: updateErr } = await supabase
         .from('results')
         .update({ chart_data: updatedChartData })
-        .eq('session_id', sessionResult.session_id);
+        .eq('id', targetResult.id);
 
       if (updateErr) throw updateErr;
 
