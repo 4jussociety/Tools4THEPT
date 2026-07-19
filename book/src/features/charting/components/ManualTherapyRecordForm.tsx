@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { ManualTherapyRecord, SessionResult } from '../types/charting';
+import clsx from 'clsx';
 
 interface ManualTherapyRecordFormProps {
   sessionResult: SessionResult;
