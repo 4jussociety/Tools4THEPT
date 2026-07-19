@@ -233,16 +233,6 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    // Sonox 전사 작업을 비동기 웹훅으로 위임하고 즉시 202 응답 반환
-        return new Response(JSON.stringify({
-          status: "accepted",
-          instant: false,
-          message: "분석이 백그라운드에서 진행 중입니다. 완료 시 대시보드에 업데이트됩니다.",
-          session_id: session_id,
-        }), {
-          status: 202,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
 
     const isWebhook = url.searchParams.get("webhook") === "true";
 
@@ -683,7 +673,7 @@ Deno.serve(async (req) => {
 
         if (sonioxUploadRes.status !== 201) {
           const errText = await sonioxUploadRes.text();
-          throw new Error(`Sonox file upload failed: ${sonioxUploadRes.status} - ${errText}`);
+          throw new Error(`Soniox file upload failed: ${sonioxUploadRes.status} - ${errText}`);
         }
 
         const { id: fileId } = await sonioxUploadRes.json();
@@ -692,7 +682,7 @@ Deno.serve(async (req) => {
         // Call Soniox asynchronous transcription with Webhook url
         const rawWebhook = `${supabaseUrl}/functions/v1/analyze?webhook=true&session_id=${session_id}&file_ext=${file_ext}`;
         const webhookUrl = encodeURIComponent(rawWebhook);
-        console.log(`[Sonox] Creating async transcription with Webhook: ${decodeURIComponent(webhookUrl)}`);
+        console.log(`[Soniox] Creating async transcription with Webhook: ${decodeURIComponent(webhookUrl)}`);
         
         const transRes = await fetch("https://api.soniox.com/v1/transcriptions", {
           method: "POST",
@@ -711,97 +701,20 @@ Deno.serve(async (req) => {
           }),
         });
 
-        }
-
         const transData = await transRes.json();
         const jobId = transData.id;
         console.log(`[Soniox] Transcription task created: ${jobId}`);
+        // Soniox 작업을 웹훅으로 위임하고 즉시 202 응답 반환
+        return new Response(JSON.stringify({
+          status: "accepted",
+          instant: false,
+          message: "분석이 백그라운드에서 진행 중입니다. 완료 시 대시보드에 업데이트됩니다.",
+          session_id: session_id,
+        }), {
+          status: 202,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
 
-        // [실시간 최적화] Edge Function 내부에서 Soniox 작업 완료를 실시간 폴링하여 대기
-        // 오디오 크기에 관계 없이 사용자 화면 대기 시간을 최소화하기 위해 최대 100초간 대기합니다.
-        let jobCompleted = false;
-        let transcriptResult: any = null;
-        const maxPollRetries = 25; // 25 * 4초 = 100초
-        
-        for (let attempt = 0; attempt < maxPollRetries; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, 4000));
-          
-          const pollRes = await fetch(`https://api.soniox.com/v1/transcriptions/${jobId}`, {
-            headers: { "Authorization": `Bearer ${sonioxApiKey}` },
-          });
-          
-          if (pollRes.ok) {
-            const pollData = await pollRes.json();
-            if (pollData.status === "completed") {
-              jobCompleted = true;
-              transcriptResult = pollData;
-              break;
-            } else if (pollData.status === "failed") {
-              throw new Error("Soniox transcription failed at STT engine.");
-            }
-          }
-        }
-
-        // 만약 100초 안에 완료되었다면, 즉시 GPT 정제 및 차트/가이드 생성 수행 후 200 반환
-        if (jobCompleted && transcriptResult) {
-          console.log(`[process-instant] STT completed within limit. Generating GPT outputs...`);
-          
-          const segments = groupTokensBySpeaker(transcriptResult);
-          const rawFormatted = formatDiarizedTranscript(segments);
-
-          // 음성과 메모가 둘 다 없으면 에러 처리
-          if (!rawFormatted.trim() && !session.memo?.trim()) {
-            throw new Error("분석할 음성 녹음 내용과 수기 메모가 모두 비어 있습니다.");
-          }
-
-          // OpenAI 정제 (1단계)
-          let refinedTranscript = "";
-          if (rawFormatted.trim()) {
-            const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${openaiApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: [
-                  { role: "system", content: REFINE_SYSTEM_PROMPT },
-                  { role: "user", content: rawFormatted },
-                ],
-                temperature: 0.3,
-              }),
-            });
-            if (!refineRes.ok) throw new Error("OpenAI Refine error: " + (await refineRes.text()));
-            const refineJson = await refineRes.json();
-            refinedTranscript = refineJson.choices[0].message.content.trim();
-          } else {
-            refinedTranscript = "(음성 전사 내용 없음)";
-          }
-
-          const chartUserContent = `아래는 ${session.profession.toUpperCase()} 세션의 녹취록입니다.\n\n${refinedTranscript}${
-            session.memo ? `\n\n[추가 수기 메모]\n${session.memo}` : ""
-          }`;
-
-          // [병렬 처리 최적화] SOAP 차트와 가이드 작성을 동시에 호출 (약 15초 단축)
-          const [chartResponse, guideResponse] = await Promise.all([
-            fetch("https://api.openai.com/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${openaiApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: [
-                  { role: "system", content: getChartPrompt(session.profession) },
-                  { role: "user", content: chartUserContent },
-                ],
-                temperature: 0.1,
-                response_format: { type: "json_object" },
-              }),
-            }),
-            fetch("https://api.openai.com/v1/chat/completions", {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${openaiApiKey}`,
