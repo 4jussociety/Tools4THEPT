@@ -352,8 +352,9 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
           {availableTechniques.map((tech) => {
             const isChecked = selectedTechniques.includes(tech);
             return (
-              <label 
+              <div 
                 key={tech} 
+                onClick={() => toggleTechnique(tech)}
                 className={clsx(
                   "border rounded-xl p-2.5 flex items-center gap-2 cursor-pointer transition select-none font-bold",
                   isChecked 
@@ -364,11 +365,11 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
                 <input
                   type="checkbox"
                   checked={isChecked}
-                  onChange={() => toggleTechnique(tech)}
-                  className="rounded accent-indigo-600"
+                  readOnly
+                  className="rounded accent-indigo-600 pointer-events-none"
                 />
                 <span className="text-[11px]">{tech}</span>
-              </label>
+              </div>
             );
           })}
         </div>
