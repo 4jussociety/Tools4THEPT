@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getClients, deleteClient } from './api'
 import type { ClientWithDetails } from './api'
-import { Plus, Search, Trash2, Edit, CalendarPlus, Users, Hash, MessageSquare, X } from 'lucide-react'
+import { Plus, Search, Trash2, Edit, CalendarPlus, Users, Hash, MessageSquare, X, Sparkles } from 'lucide-react'
 import ClientModal from './ClientModal'
 import ClientMembershipsPanel from './ClientMembershipsPanel'
 import ClientChartingHistoryPanel from './ClientChartingHistoryPanel'
@@ -25,6 +25,7 @@ export default function ClientList() {
     const { profile } = useAuth()
     const [ticketClient, setTicketClient] = useState<Client | null>(null)
     const [detailTab, setDetailTab] = useState<'ticket' | 'charting'>('ticket')
+    const [drawerClient, setDrawerClient] = useState<Client | null>(null)
 
     const queryClient = useQueryClient()
 
@@ -186,10 +187,22 @@ export default function ClientList() {
                                                 + 이용권 등록
                                             </button>
                                         )}
+                                        {Client.visit_count > 0 && (
+                                            <button onClick={() => setDrawerClient(Client)} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer flex items-center gap-0.5" title="AI 임상 차트 기록 바로보기">
+                                                🎙️ AI {Client.visit_count}회
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 {/* 관리 버튼 */}
                                 <div className="flex items-center gap-0.5 ml-2">
+                                    <button
+                                        onClick={() => setDrawerClient(Client)}
+                                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                        title="AI 차팅 퀵 프리뷰"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                    </button>
                                     <button
                                         onClick={() => handleCopyMessage(Client)}
                                         className={`p-2 rounded-lg transition-colors ${Client.next_appointment ? 'text-indigo-500 hover:bg-indigo-50' : 'text-gray-300 cursor-not-allowed'}`}
@@ -286,17 +299,31 @@ export default function ClientList() {
                                     </td>
                                     <td className="px-5 py-3">
                                         {Client.active_tickets && Client.active_tickets.length > 0 ? (
-                                            <div className="flex flex-wrap gap-1">
-                                                {Client.active_tickets.map((m, idx) => (
-                                                    <button key={idx} onClick={() => setTicketClient(Client)} className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer" title={m.name}>
-                                                        🎫 {m.total_sessions - m.used_sessions}/{m.total_sessions}
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {Client.active_tickets.map((m, idx) => (
+                                                        <button key={idx} onClick={() => setTicketClient(Client)} className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer" title={m.name}>
+                                                            🎫 {m.total_sessions - m.used_sessions}/{m.total_sessions}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {Client.visit_count > 0 && (
+                                                    <button onClick={() => setDrawerClient(Client)} className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer w-max" title="AI 임상 차트 기록 바로보기">
+                                                        🎙️ AI {Client.visit_count}회
                                                     </button>
-                                                ))}
+                                                )}
                                             </div>
                                         ) : (
-                                            <button onClick={() => setTicketClient(Client)} className="text-[10px] font-bold px-1.5 py-1 rounded bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer">
-                                                + 등록
-                                            </button>
+                                            <div className="flex flex-col gap-1">
+                                                <button onClick={() => setTicketClient(Client)} className="text-[10px] font-bold px-1.5 py-1 rounded bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer w-max">
+                                                    + 등록
+                                                </button>
+                                                {Client.visit_count > 0 && (
+                                                    <button onClick={() => setDrawerClient(Client)} className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer w-max" title="AI 임상 차트 기록 바로보기">
+                                                        🎙️ AI {Client.visit_count}회
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </td>
                                     <td className="px-5 py-3 text-xs text-gray-400 font-medium">
@@ -311,6 +338,13 @@ export default function ClientList() {
                                     </td>
                                     <td className="px-5 py-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
+                                            <button
+                                                onClick={() => setDrawerClient(Client)}
+                                                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                title="AI 차팅 퀵 프리뷰"
+                                            >
+                                                <Sparkles className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={() => handleCopyMessage(Client)}
                                                 className={`p-1.5 rounded-lg transition-colors ${Client.next_appointment ? 'text-indigo-500 hover:bg-indigo-50' : 'text-gray-300 cursor-not-allowed'}`}
@@ -377,7 +411,7 @@ export default function ClientList() {
                                     detailTab === 'ticket'
                                         ? 'border-blue-600 text-blue-600 font-bold'
                                         : 'border-transparent text-gray-400 hover:text-gray-600 font-medium'
-                                }`}
+                                  }`}
                             >
                                 🎫 이용권 관리
                             </button>
@@ -387,7 +421,7 @@ export default function ClientList() {
                                     detailTab === 'charting'
                                         ? 'border-blue-600 text-blue-600 font-bold'
                                         : 'border-transparent text-gray-400 hover:text-gray-600 font-medium'
-                                }`}
+                                  }`}
                             >
                                 🎙️ AI 임상 차트 기록
                             </button>
@@ -399,6 +433,35 @@ export default function ClientList() {
                         ) : (
                             <ClientChartingHistoryPanel clientId={ticketClient.id} />
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* AI 차팅 프리뷰 우측 Drawer */}
+            {drawerClient && (
+                <div className="fixed inset-0 z-50 overflow-hidden" onClick={() => setDrawerClient(null)}>
+                    <div className="absolute inset-0 bg-black/40 transition-opacity animate-in fade-in duration-200" />
+                    <div className="absolute inset-y-0 right-0 max-w-full flex pl-10" onClick={e => e.stopPropagation()}>
+                        <div className="w-screen max-w-lg bg-white shadow-xl flex flex-col animate-in slide-in-from-right duration-300">
+                            <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between shadow-sm">
+                                <div>
+                                    <h2 className="text-base font-black flex items-center gap-1.5">
+                                        <Sparkles className="w-4 h-4 text-indigo-400" />
+                                        <span>{drawerClient.name} 고객 AI 차팅 이력</span>
+                                    </h2>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">간편 분석 요약 및 히스토리 비교</p>
+                                </div>
+                                <button
+                                    onClick={() => setDrawerClient(null)}
+                                    className="text-gray-400 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg cursor-pointer"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-5 bg-slate-50/50">
+                                <ClientChartingHistoryPanel clientId={drawerClient.id} />
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
