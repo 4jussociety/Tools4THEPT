@@ -665,6 +665,7 @@ Deno.serve(async (req) => {
       // Upload file to Soniox (Multipart Form-Data)
       try {
         console.log(`[Soniox] Uploading audio to Soniox Files API (Multipart)...`);
+        const formData = new FormData();
         const mimeType = getMimeTypeByExt(ext);
         const fileBlob = new Blob([audioBlob], { type: mimeType });
         formData.append("file", fileBlob, `audio.${ext}`);
