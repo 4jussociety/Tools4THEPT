@@ -13,7 +13,8 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
   sessionResult,
   onSaved,
 }) => {
-  const chartData = sessionResult.chart_data || {};
+  const chartDataRaw = sessionResult.chart_data || {};
+  const chartData = typeof chartDataRaw === 'string' ? JSON.parse(chartDataRaw) : chartDataRaw;
   const initialMt = chartData.manual_therapy_record || {};
   const cr = chartData.clinical_record || {};
   const inferredDiag =
@@ -101,7 +102,8 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
 
   // 데이터 동적 변경을 위한 useEffect 추가 (세션 전환 시 폼 상태 리셋)
   useEffect(() => {
-    const currentChartData = sessionResult.chart_data || {};
+    const rawChartData = sessionResult.chart_data || {};
+    const currentChartData = typeof rawChartData === 'string' ? JSON.parse(rawChartData) : rawChartData;
     const currentMt = currentChartData.manual_therapy_record || {};
     const currentCr = currentChartData.clinical_record || {};
     const currentInferredDiag =
@@ -352,9 +354,8 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
           {availableTechniques.map((tech) => {
             const isChecked = selectedTechniques.includes(tech);
             return (
-              <div 
+              <label 
                 key={tech} 
-                onClick={() => toggleTechnique(tech)}
                 className={clsx(
                   "border rounded-xl p-2.5 flex items-center gap-2 cursor-pointer transition select-none font-bold",
                   isChecked 
@@ -365,11 +366,11 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
                 <input
                   type="checkbox"
                   checked={isChecked}
-                  readOnly
-                  className="rounded accent-indigo-600 pointer-events-none"
+                  onChange={() => toggleTechnique(tech)}
+                  className="rounded accent-indigo-600"
                 />
                 <span className="text-[11px]">{tech}</span>
-              </div>
+              </label>
             );
           })}
         </div>
@@ -524,6 +525,7 @@ export const ManualTherapyRecordForm: React.FC<ManualTherapyRecordFormProps> = (
                   onChange={(e) => setOverallRating(e.target.value)}
                   className="accent-indigo-600"
                 />
+                <span>{rating}</span>
               </label>
             );
           })}

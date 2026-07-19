@@ -15,8 +15,8 @@ export default function ClientChartingHistoryPanel({ clientId, selectedSessionId
   const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchHistory = async () => {
-    setIsLoading(true);
+  const fetchHistory = async (isFirstLoad = false) => {
+    if (isFirstLoad) setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('sessions')
@@ -35,8 +35,14 @@ export default function ClientChartingHistoryPanel({ clientId, selectedSessionId
   };
 
   useEffect(() => {
-    fetchHistory();
-  }, [clientId, refreshKey]);
+    fetchHistory(true);
+  }, [clientId]);
+
+  useEffect(() => {
+    if (refreshKey !== undefined && refreshKey > 0) {
+      fetchHistory(false);
+    }
+  }, [refreshKey]);
 
   if (isLoading) {
     return (
@@ -62,9 +68,18 @@ export default function ClientChartingHistoryPanel({ clientId, selectedSessionId
         const dateStr = format(parseISO(session.created_at), 'yyyy년 MM월 dd일 HH:mm');
         const durationMin = Math.floor(session.duration / 60);
         const durationSec = session.duration % 60;
-        const result = session.results?.[0]; // 1:1 관계 결과 데이터
-        const chartData = result?.chart_data || {};
-        const mtRecord = chartData?.manual_rehab_record || chartData?.manual_therapy_record || {};
+        
+        // 1:1 관계 결과 데이터에서 최신 등록된 results 행을 보장하도록 생성시간 정렬 적용
+        const sortedResults = session.results 
+          ? [...session.results].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) 
+          : [];
+        const result = sortedResults[0];
+        
+        const rawChartData = result?.chart_data || {};
+        const chartData = typeof rawChartData === 'string' ? JSON.parse(rawChartData) : rawChartData;
+        
+        // 도수재활세션 기록지의 정식 필드명인 manual_therapy_record를 확실하게 우선 참조
+        const mtRecord = chartData?.manual_therapy_record || chartData?.manual_rehab_record || {};
         const isSelected = selectedSessionId === session.id;
 
         const handleCardClick = () => {
