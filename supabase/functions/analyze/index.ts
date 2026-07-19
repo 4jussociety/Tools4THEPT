@@ -63,6 +63,19 @@ function groupTokensBySpeaker(transcript: any): Segment[] {
   return segments;
 }
 
+function getMimeTypeByExt(ext: string): string {
+  const mapping: Record<string, string> = {
+    mp3: "audio/mpeg",
+    m4a: "audio/mp4",
+    wav: "audio/wav",
+    webm: "audio/webm",
+    ogg: "audio/ogg",
+    flac: "audio/flac",
+    aac: "audio/aac",
+  };
+  return mapping[ext.toLowerCase()] || "application/octet-stream";
+}
+
 // Helper to format diarized segments into printable transcript
 function formatDiarizedTranscript(segments: Segment[]): string {
   const lines: string[] = [];
@@ -652,8 +665,8 @@ Deno.serve(async (req) => {
       // Upload file to Soniox (Multipart Form-Data)
       try {
         console.log(`[Soniox] Uploading audio to Soniox Files API (Multipart)...`);
-        const formData = new FormData();
-        const fileBlob = new Blob([audioBlob], { type: `audio/${ext}` });
+        const mimeType = getMimeTypeByExt(ext);
+        const fileBlob = new Blob([audioBlob], { type: mimeType });
         formData.append("file", fileBlob, `audio.${ext}`);
 
         const sonioxUploadRes = await fetch("https://api.soniox.com/v1/files", {
