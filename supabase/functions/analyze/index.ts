@@ -233,6 +233,17 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
+    // Sonox 전사 작업을 비동기 웹훅으로 위임하고 즉시 202 응답 반환
+        return new Response(JSON.stringify({
+          status: "accepted",
+          instant: false,
+          message: "분석이 백그라운드에서 진행 중입니다. 완료 시 대시보드에 업데이트됩니다.",
+          session_id: session_id,
+        }), {
+          status: 202,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+
     const isWebhook = url.searchParams.get("webhook") === "true";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -314,7 +325,10 @@ Deno.serve(async (req) => {
 
           // 음성과 메모가 둘 다 없으면 에러 처리
           if (!rawFormatted.trim() && !session.memo?.trim()) {
-            throw new Error("분석할 음성 녹음 내용과 수기 메모가 모두 비어 있습니다.");
+            return new Response(JSON.stringify({ detail: "분석할 음성 녹음 내용과 수기 메모가 모두 비어 있습니다." }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
 
           // OpenAI pipeline
@@ -697,10 +711,6 @@ Deno.serve(async (req) => {
           }),
         });
 
-        if (transRes.status !== 202) {
-          const errText = await transRes.text();
-          const status = transRes.status;
-          throw new Error(`Sonox transcription creation failed: ${status} - ${errText}`);
         }
 
         const transData = await transRes.json();
