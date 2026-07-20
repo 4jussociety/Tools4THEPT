@@ -134,7 +134,7 @@ export function PortalPage() {
                 /* ======== 로그인 완료 상태: 서비스 이동 포털 게이트웨이 ======== */
                 <div className="relative z-10 w-full max-w-2xl p-6 md:p-10 bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/50 flex flex-col items-center">
                     <div className="flex flex-col items-center mb-6">
-                        <h1 className="text-4xl font-black text-slate-900 font-roboto italic tracking-tighter leading-none [-webkit-text-stroke:2px_black]">4THEPT</h1>
+                        <h1 className="text-7xl md:text-8xl text-slate-900 leading-none" style={{ fontFamily: "'Glacial Indifference', -apple-system, sans-serif", fontWeight: 'bold', fontStyle: 'italic', letterSpacing: '0px' }}>4THEPT</h1>
                     </div>
 
                     <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm font-semibold mb-8 text-slate-600">
@@ -188,7 +188,7 @@ export function PortalPage() {
                 <div className="relative z-10 w-full max-w-md p-8 bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/50 flex flex-col items-center">
 
                     <div className="flex flex-col items-center mb-6">
-                        <h1 className="text-4xl font-black text-slate-900 font-roboto italic tracking-tighter leading-none [-webkit-text-stroke:2px_black]">4THEPT</h1>
+                        <h1 className="text-7xl md:text-8xl text-slate-900 leading-none" style={{ fontFamily: "'Glacial Indifference', -apple-system, sans-serif", fontWeight: 'bold', fontStyle: 'italic', letterSpacing: '0px' }}>4THEPT</h1>
                     </div>
 
                     {/* 로그인 / 회원가입 탭 */}
