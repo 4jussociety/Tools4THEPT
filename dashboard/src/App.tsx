@@ -120,12 +120,7 @@ function App() {
               <ThePtLogo className="text-slate-900 !text-base md:!text-lg" style={{ top: '0' }} />
             </a>
             <nav className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0">
-              <a
-                href="/"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs md:text-sm transition-all whitespace-nowrap text-slate-500 hover:text-slate-700"
-              >
-                <Home size={16} className="md:w-[18px] md:h-[18px]" /> 포털 홈
-              </a>
+
               <button
                 onClick={() => setActiveTab('dashboard')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs md:text-sm transition-all whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
