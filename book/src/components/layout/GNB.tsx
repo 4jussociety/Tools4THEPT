@@ -6,7 +6,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
 import { LogOut, User, CalendarDays, Users, BarChart3, Menu, X, Sparkles, Globe, Settings, UserCog, History } from 'lucide-react'
 import { clsx } from 'clsx'
-import { ThePtLogo } from '../ThePtLogo'
 
 export default function GNB() {
     const { profile, user, signOut } = useAuth()
@@ -32,8 +31,10 @@ export default function GNB() {
             {/* ─── 데스크톱 상단 네비게이션 ─── */}
             <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 md:px-6 sticky top-0 z-50 font-sans">
                 <div className="flex items-center gap-4 md:gap-8">
-                    <a href="/portal" className="no-underline flex items-center">
-                        <ThePtLogo prefix="스케줄" className="text-[2.0em] md:text-[2.5em]" />
+                    <a href="/portal" className="flex items-baseline text-black hover:text-black">
+                        <span className="text-2xl md:text-3xl font-black tracking-tight leading-tight">스케줄</span>
+                        <span className="text-xs md:text-sm font-bold text-gray-500 italic">for</span>
+                        <span className="text-xl md:text-2xl font-black font-roboto italic tracking-tighter [-webkit-text-stroke:1px_black]">THEPT</span>
                     </a>
                     {/* 데스크톱 네비 */}
                     <nav className="hidden lg:flex items-center gap-1">
