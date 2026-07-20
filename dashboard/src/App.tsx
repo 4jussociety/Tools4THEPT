@@ -114,11 +114,11 @@ function App() {
       <header className="mb-2 md:mb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-3 bg-white p-2 px-3 md:p-3 md:px-4 rounded-xl md:rounded-2xl shadow-sm border border-slate-200">
         <div className="flex flex-col gap-1.5 w-full md:w-auto">
           <div className="flex flex-row items-center justify-between md:justify-start gap-2 md:gap-4 w-full">
-            <div className="flex items-baseline">
-              <span className="text-xl md:text-2xl font-black text-slate-800 tracking-tight whitespace-nowrap leading-tight">상황판</span>
+            <a href="/portal" className="flex items-baseline hover:opacity-80 transition-opacity cursor-pointer text-slate-800">
+              <span className="text-xl md:text-2xl font-black tracking-tight whitespace-nowrap leading-tight">상황판</span>
               <span className="text-[10px] md:text-xs font-bold text-slate-400 italic">for</span>
               <ThePtLogo className="text-slate-900 !text-base md:!text-lg" style={{ top: '0' }} />
-            </div>
+            </a>
             <nav className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0">
               <a
                 href="/"
