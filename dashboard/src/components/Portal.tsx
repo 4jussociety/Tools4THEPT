@@ -245,7 +245,7 @@ export function Portal({ initialView }: PortalProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-6">
               {/* 서비스 1: 물리치료실 상황판 */}
               <button
-                onClick={() => { window.location.href = '/app'; }}
+                onClick={() => { window.location.href = '/dashboard'; }}
                 className="flex flex-col text-left p-6 bg-white hover:bg-blue-50/40 border-2 border-slate-200 hover:border-blue-500 rounded-2xl transition-all duration-300 group hover:-translate-y-1 shadow-md hover:shadow-blue-500/10 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

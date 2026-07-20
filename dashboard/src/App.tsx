@@ -142,7 +142,7 @@ function App() {
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[10px] md:text-xs font-black whitespace-nowrap">👁 뷰어 모드</span>
                   {session && (
                     <button
-                      onClick={() => { window.location.href = '/app'; }}
+                      onClick={() => { window.location.href = '/dashboard'; }}
                       className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black hover:bg-blue-100 transition-colors cursor-pointer"
                     >
                       ⚙️ 매니저 모드로 복귀
@@ -154,7 +154,7 @@ function App() {
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] md:text-xs font-black whitespace-nowrap">🧑‍⚕️ 스태프 모드</span>
                   {session && (
                     <button
-                      onClick={() => { window.location.href = '/app'; }}
+                      onClick={() => { window.location.href = '/dashboard'; }}
                       className="text-[10px] bg-blue-50 border border-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black hover:bg-blue-100 transition-colors cursor-pointer"
                     >
                       ⚙️ 매니저 모드로 복귀
