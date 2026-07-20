@@ -171,19 +171,7 @@ function App() {
                 <>
                   <span className="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-[10px] md:text-xs font-black whitespace-nowrap">⚙️ 매니저 모드</span>
                   
-                  {/* 직접 모드 전환 버튼 */}
-                  <button
-                    onClick={() => { window.location.href = `/dashboard?mode=viewer&owner=${ownerId || ''}`; }}
-                    className="text-[10px] bg-amber-50 border border-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-black hover:bg-amber-100 transition-colors cursor-pointer"
-                  >
-                    👁 뷰어 모드 전환
-                  </button>
-                  <button
-                    onClick={() => { window.location.href = `/dashboard?mode=staff&owner=${ownerId || ''}`; }}
-                    className="text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black hover:bg-emerald-100 transition-colors cursor-pointer"
-                  >
-                    🧑‍⚕️ 스태프 모드 전환
-                  </button>
+                  {/* 직접 모드 전환 버튼 삭제됨 */}
 
                   <button
                     onClick={() => {
