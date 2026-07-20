@@ -4,46 +4,23 @@
 BEGIN;
 
 -- ============================================
--- 1. 기존의 안전하지 않은 RLS 정책 및 함수 삭제
+-- 1. 기존의 안전하지 않은 RLS 정책 및 함수 완벽 초기화 (동적 삭제)
 -- ============================================
 
-DROP POLICY IF EXISTS "profiles_select_policy" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_insert_policy" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_policy" ON public.profiles;
-DROP POLICY IF EXISTS "RLS_profiles" ON public.profiles;
-
-DROP POLICY IF EXISTS "systems_select_policy" ON public.systems;
-DROP POLICY IF EXISTS "systems_all_owner_policy" ON public.systems;
-DROP POLICY IF EXISTS "RLS_systems" ON public.systems;
-
-DROP POLICY IF EXISTS "clients_system_policy" ON public.clients;
-DROP POLICY IF EXISTS "clients_all_policy" ON public.clients;
-DROP POLICY IF EXISTS "RLS_clients" ON public.clients;
-
-DROP POLICY IF EXISTS "appointments_system_policy" ON public.appointments;
-DROP POLICY IF EXISTS "RLS_appointments" ON public.appointments;
-
-DROP POLICY IF EXISTS "client_tickets_system_policy" ON public.client_tickets;
-DROP POLICY IF EXISTS "RLS_client_tickets" ON public.client_tickets;
-
-DROP POLICY IF EXISTS "ticket_packages_system_policy" ON public.ticket_packages;
-DROP POLICY IF EXISTS "RLS_ticket_packages" ON public.ticket_packages;
-
-DROP POLICY IF EXISTS "sessions_system_policy" ON public.sessions;
-DROP POLICY IF EXISTS "RLS_sessions" ON public.sessions;
-
-DROP POLICY IF EXISTS "results_system_policy" ON public.results;
-DROP POLICY IF EXISTS "RLS_results" ON public.results;
-
-DROP POLICY IF EXISTS "chunks_system_policy" ON public.chunks;
-DROP POLICY IF EXISTS "Allow full access for authenticated users to chunks" ON public.chunks;
-
-DROP POLICY IF EXISTS "transcriptions_system_policy" ON public.transcriptions;
-DROP POLICY IF EXISTS "Allow full access for authenticated users to transcriptions" ON public.transcriptions;
-
-DROP POLICY IF EXISTS "system_members_select_policy" ON public.system_members;
-DROP POLICY IF EXISTS "system_members_all_policy" ON public.system_members;
-DROP POLICY IF EXISTS "system_members_all_owner_policy" ON public.system_members;
+-- 이름이 달라서 지워지지 않은 과거의 허술한 정책(예: "Enable read access for all users")들이 
+-- 남아있으면 OR 연산으로 뚫리게 됩니다. 따라서 모든 정책을 일괄 폭파시킵니다.
+DO $$ 
+DECLARE 
+    r RECORD; 
+BEGIN 
+    FOR r IN (
+        SELECT policyname, tablename 
+        FROM pg_policies 
+        WHERE schemaname = 'public'
+    ) LOOP 
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', r.policyname, r.tablename); 
+    END LOOP; 
+END $$;
 
 DROP FUNCTION IF EXISTS public.get_my_system_ids();
 
