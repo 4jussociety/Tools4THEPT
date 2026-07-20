@@ -22,6 +22,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .eq('id', userId)
                 .maybeSingle()
 
+            let systemId = profileData?.system_id || null
+
+            // 1.5. profiles 테이블의 system_id가 NULL인 경우, system_members 테이블에서 승인된 소속 정보 조회 (폴백)
+            if (!systemId) {
+                try {
+                    const { data: memberData } = await supabase
+                        .from('system_members')
+                        .select('system_id')
+                        .eq('user_id', userId)
+                        .eq('status', 'approved')
+                        .limit(1)
+                        .maybeSingle()
+                    
+                    if (memberData?.system_id) {
+                        systemId = memberData.system_id
+                    }
+                } catch (e) {
+                    console.error('[AuthProvider] system_members fetch fallback failed:', e)
+                }
+            }
+
             const computedName = profileData?.full_name || userEmail?.split('@')[0] || '치료사'
 
             const combinedProfile: Profile = {
@@ -29,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email: userEmail || '',
                 full_name: computedName,
                 role: profileData?.role || 'THERAPIST',
-                system_id: profileData?.system_id || null,
+                system_id: systemId,
             }
 
             // 2. Fetch system details if system_id exists

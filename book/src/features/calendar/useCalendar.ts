@@ -57,12 +57,13 @@ export function useProfiles(systemId?: string | null) {
 }
 
 /** 특정 날짜/주간의 예약 목록 조회 훅 */
-export function useAppointments(date: Date) {
+export function useAppointments(date: Date, systemId?: string) {
     return useQuery({
-        queryKey: ['appointments', date],
-        queryFn: () => getAppointments(date),
+        queryKey: ['appointments', systemId, date],
+        queryFn: () => getAppointments(date, systemId),
         staleTime: 30 * 1000, // 30초 캐싱 (실시간 수신과 조합)
         refetchOnWindowFocus: false,
+        enabled: !!systemId,
     })
 }
 
@@ -73,11 +74,12 @@ export function useCreateAppointment() {
         mutationFn: createAppointment,
         onSuccess: () => {
             queryClient.refetchQueries({ queryKey: ['appointments'] })
+            queryClient.invalidateQueries({ queryKey: ['statistics'] })
         },
     })
 }
 
-/** 예약 수정 훅 */
+/** 예약 상태/정보 변경 훅 */
 export function useUpdateAppointment() {
     const queryClient = useQueryClient()
     return useMutation({
@@ -85,6 +87,7 @@ export function useUpdateAppointment() {
             updateAppointment(id, updates),
         onSuccess: () => {
             queryClient.refetchQueries({ queryKey: ['appointments'] })
+            queryClient.invalidateQueries({ queryKey: ['statistics'] })
         },
     })
 }
@@ -104,10 +107,22 @@ export function useCreateClient() {
 export function useDeleteAppointment() {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (id: string) => deleteAppointment(id),
+        mutationFn: deleteAppointment,
         onSuccess: () => {
             queryClient.refetchQueries({ queryKey: ['appointments'] })
+            queryClient.invalidateQueries({ queryKey: ['statistics'] })
         },
+    })
+}
+
+/** 고객 목록 조회 훅 (자동완성 및 선택용) */
+export function useClients(systemId?: string) {
+    return useQuery({
+        queryKey: ['clients', systemId],
+        queryFn: () => getClients(systemId),
+        staleTime: 5 * 60 * 1000, // 5분
+        refetchOnWindowFocus: false,
+        enabled: !!systemId,
     })
 }
 
@@ -125,12 +140,13 @@ export function useUpdateProfile() {
 }
 
 /** 월간 예약 목록 조회 훅 (미니 달력용) */
-export function useMonthlyAppointments(date: Date) {
+export function useMonthlyAppointments(date: Date, systemId?: string) {
     return useQuery({
-        queryKey: ['appointments', 'monthly', date],
-        queryFn: () => getMonthlyAppointments(date),
+        queryKey: ['appointments', 'monthly', systemId, date],
+        queryFn: () => getMonthlyAppointments(date, systemId),
         staleTime: 2 * 60 * 1000, // 2분 캐싱
         refetchOnWindowFocus: false,
+        enabled: !!systemId,
     })
 }
 

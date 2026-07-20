@@ -41,7 +41,7 @@ type ModalStep = 'TYPE_SELECT' | 'CLIENT_SEARCH' | 'QUICK_CREATE' | 'DETAIL_FORM
 
 export default function AppointmentModal({ isOpen, onClose, initialData, editingAppointment }: Props) {
     const { profile: myProfile } = useAuth()
-    const { data: clients } = useClients()
+    const { data: clients } = useClients(myProfile?.system_id || undefined)
     const { data: profiles } = useProfiles(myProfile?.system_id)
     const createMutation = useCreateAppointment()
     const updateMutation = useUpdateAppointment()

@@ -2,13 +2,13 @@ import { supabase } from '@/lib/supabase'
 import type { Appointment, Client, Profile } from '@/types/db'
 import { endOfDay, startOfWeek, addDays, formatISO, startOfMonth, endOfMonth, endOfWeek } from 'date-fns'
 
-export async function getAppointments(date: Date) {
+export async function getAppointments(date: Date, systemId?: string) {
     const weekStart = startOfWeek(date, { weekStartsOn: 0 })
     const weekEnd = endOfDay(addDays(weekStart, 6))
 
     try {
         // 1. 1차 시도: FK 조인을 통해 client 및 instructor 정보 함께 가져오기
-        const { data, error } = await supabase
+        let query = supabase
             .from('appointments')
             .select(`
                 *,
@@ -18,6 +18,12 @@ export async function getAppointments(date: Date) {
             .gte('start_time', formatISO(weekStart))
             .lte('start_time', formatISO(weekEnd))
 
+        if (systemId) {
+            query = query.eq('system_id', systemId)
+        }
+
+        const { data, error } = await query
+
         if (!error && data) {
             return data as Appointment[]
         }
@@ -25,11 +31,17 @@ export async function getAppointments(date: Date) {
 
     // 2. 2차 시도 (안전 Fallback): appointments 가져온 후 clients, profiles 별도 매핑 (오류 100% 방지)
     try {
-        const { data: appointmentsData, error } = await supabase
+        let query = supabase
             .from('appointments')
             .select('*')
             .gte('start_time', formatISO(weekStart))
             .lte('start_time', formatISO(weekEnd))
+
+        if (systemId) {
+            query = query.eq('system_id', systemId)
+        }
+
+        const { data: appointmentsData, error } = await query
 
         if (error || !appointmentsData) return []
 
@@ -40,12 +52,20 @@ export async function getAppointments(date: Date) {
         let instructorsMap = new Map()
 
         if (clientIds.length > 0) {
-            const { data: clients } = await supabase.from('clients').select('*').in('id', clientIds)
+            let clientQuery = supabase.from('clients').select('*').in('id', clientIds)
+            if (systemId) {
+                clientQuery = clientQuery.eq('system_id', systemId)
+            }
+            const { data: clients } = await clientQuery
             if (clients) clientsMap = new Map(clients.map(c => [c.id, c]))
         }
 
         if (instructorIds.length > 0) {
-            const { data: instructors } = await supabase.from('profiles').select('*').in('id', instructorIds)
+            let instructorQuery = supabase.from('profiles').select('*').in('id', instructorIds)
+            if (systemId) {
+                instructorQuery = instructorQuery.or(`system_id.eq.${systemId},id.eq.${systemId}`)
+            }
+            const { data: instructors } = await instructorQuery
             if (instructors) instructorsMap = new Map(instructors.map(i => [i.id, i]))
         }
 
@@ -90,12 +110,12 @@ export async function getAppointmentsByClient(clientId: string) {
     }
 }
 
-export async function getMonthlyAppointments(date: Date) {
+export async function getMonthlyAppointments(date: Date, systemId?: string) {
     const start = startOfWeek(startOfMonth(date), { weekStartsOn: 0 })
     const end = endOfWeek(endOfMonth(date), { weekStartsOn: 0 })
 
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('appointments')
             .select(`
                 id,
@@ -105,6 +125,12 @@ export async function getMonthlyAppointments(date: Date) {
             `)
             .gte('start_time', formatISO(start))
             .lte('start_time', formatISO(end))
+
+        if (systemId) {
+            query = query.eq('system_id', systemId)
+        }
+
+        const { data, error } = await query
 
         if (error) return []
         return data as Partial<Appointment>[]
@@ -161,12 +187,18 @@ export async function deleteAppointment(id: string) {
     return true
 }
 
-export async function getClients() {
+export async function getClients(systemId?: string) {
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('clients')
             .select('*')
             .order('name', { ascending: true })
+
+        if (systemId) {
+            query = query.eq('system_id', systemId)
+        }
+
+        const { data, error } = await query
 
         if (error) return []
         return data as Client[]

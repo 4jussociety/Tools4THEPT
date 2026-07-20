@@ -19,11 +19,15 @@ export type ClientWithDetails = Client & {
     }[]
 }
 
-export async function getClients(search?: string): Promise<ClientWithDetails[]> {
+export async function getClients(systemId?: string, search?: string): Promise<ClientWithDetails[]> {
     let query = supabase
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false })
+
+    if (systemId) {
+        query = query.eq('system_id', systemId)
+    }
 
     if (search) {
         query = query.ilike('name', `%${search}%`)
@@ -140,6 +144,7 @@ export async function updateClient(id: string, updates: Partial<Client>) {
             memo: updates.memo,
             gender: updates.gender,
             birth_date: updates.birth_date,
+            system_id: updates.system_id,
         }
 
         const { data: fallbackData, error: fallbackError } = await supabase

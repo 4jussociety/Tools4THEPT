@@ -30,8 +30,9 @@ export default function ClientList() {
     const queryClient = useQueryClient()
 
     const { data: clients, isLoading } = useQuery({
-        queryKey: ['clients', search],
-        queryFn: () => getClients(search),
+        queryKey: ['clients', profile?.system_id, search],
+        queryFn: () => getClients(profile?.system_id, search),
+        enabled: !!profile?.system_id,
     })
 
     const deleteMutation = useMutation({

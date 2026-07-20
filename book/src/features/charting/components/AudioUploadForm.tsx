@@ -3,6 +3,7 @@ import { Upload, FileAudio, FileText, Sparkles, AlertCircle, HelpCircle, Search,
 import { supabase } from '@/lib/supabase';
 import type { SessionResult } from '../types/charting';
 import { formatKST } from '@/lib/dateUtils';
+import { useAuth } from '@/features/auth/AuthContext';
 
 interface AudioUploadFormProps {
   clientId?: string;
@@ -73,12 +74,15 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
   }, [selectedClient, therapyDate]);
 
   // 1. 컴포넌트 마운트 시 고객 리스트 조회
+  const { profile } = useAuth();
   useEffect(() => {
     const fetchClients = async () => {
+      if (!profile?.system_id) return;
       try {
         const { data, error } = await supabase
           .from('clients')
           .select('id, name, phone, birth_date, chart_number')
+          .eq('system_id', profile.system_id)
           .order('name', { ascending: true });
         if (!error && data) {
           setClients(data);
@@ -88,7 +92,7 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
       }
     };
     fetchClients();
-  }, []);
+  }, [profile?.system_id]);
 
   // 1-3. selectedClient 상태 변화 시 상위 컴포넌트로 동기화
   useEffect(() => {

@@ -94,8 +94,8 @@ export default function WeekView() {
 
     const [miniCalendarMonth, setMiniCalendarMonth] = useState(currentDate)
 
-    const { data: appointments, isLoading } = useAppointments(currentDate)
-    const { data: monthlyAppointments } = useMonthlyAppointments(miniCalendarMonth)
+    const { data: appointments, isLoading } = useAppointments(currentDate, profile?.system_id || undefined)
+    const { data: monthlyAppointments } = useMonthlyAppointments(miniCalendarMonth, profile?.system_id || undefined)
 
     useAutoCompleteAppointments(appointments)
     const updateMutation = useUpdateAppointment()
