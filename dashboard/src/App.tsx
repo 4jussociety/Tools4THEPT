@@ -84,9 +84,7 @@ function App() {
     cleanPath === '/' || 
     cleanPath === '/index.html' || 
     cleanPath === '/login' || 
-    cleanPath === '/portal' ||
-    cleanPath === '/dashboard/portal' || 
-    cleanPath === '/dashboard/login';
+    cleanPath === '/portal';
   if (isPortalPath) {
     return <Portal />;
   }
@@ -122,7 +120,7 @@ function App() {
             </div>
             <nav className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0">
               <a
-                href="/dashboard/portal"
+                href="/"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs md:text-sm transition-all whitespace-nowrap text-slate-500 hover:text-slate-700"
               >
                 <Home size={16} className="md:w-[18px] md:h-[18px]" /> 포털 홈
