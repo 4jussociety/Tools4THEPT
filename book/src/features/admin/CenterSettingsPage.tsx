@@ -335,7 +335,7 @@ export default function ManagerPage() {
                     <div className="space-y-4">
                         <Field label="업체명 (장소)" hint="안내 문자의 {장소} 변수에 들어갈 내용입니다.">
                             <input type="text" value={organizationName} onChange={e => setOrganizationName(e.target.value)}
-                                placeholder="예: Re:무브 체형교정"
+                                placeholder="예: OO센터"
                                 className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-200 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
                         </Field>
                         <Field label="매니저 이름" hint="안내 문자의 {담당자} 변수에 들어갈 내용입니다.">
@@ -402,7 +402,7 @@ export default function ManagerPage() {
                             {messageTemplate
                                 .replace('{고객}', '김철수')
                                 .replace('{일시}', '2024년 3월 15일(금) 14:00')
-                                .replace('{장소}', organizationName || 'Re:무브 체형교정')
+                                .replace('{장소}', organizationName || 'OO센터')
                                 .replace('{담당자}', managerName || profile.full_name || '홍길동')
                                 .replace('{연락처}', contactNumber || '02-123-4567')
                             }
