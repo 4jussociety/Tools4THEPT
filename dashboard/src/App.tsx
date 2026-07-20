@@ -77,8 +77,16 @@ function App() {
   }, [isViewerMode, isBedsLoading, beds.length]);
 
   // ======== 포털(통합 로그인) 라우팅 ========
-  const path = window.location.pathname;
-  const isPortalPath = path === '/' || path === '/index.html' || path === '/login' || path === '/login/';
+  // 끝에 붙은 슬래시를 일관성 있게 제거하여 비교
+  const cleanPath = window.location.pathname.replace(/\/$/, '');
+  const isPortalPath = 
+    cleanPath === '' || 
+    cleanPath === '/' || 
+    cleanPath === '/index.html' || 
+    cleanPath === '/login' || 
+    cleanPath === '/portal' ||
+    cleanPath === '/dashboard/portal' || 
+    cleanPath === '/dashboard/login';
   if (isPortalPath) {
     return <Portal />;
   }
@@ -114,7 +122,7 @@ function App() {
             </div>
             <nav className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0">
               <a
-                href="/"
+                href="/dashboard/portal"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs md:text-sm transition-all whitespace-nowrap text-slate-500 hover:text-slate-700"
               >
                 <Home size={16} className="md:w-[18px] md:h-[18px]" /> 포털 홈
