@@ -1,0 +1,8 @@
+{
+  "name": "tools4thept-monorepo",
+  "version": "1.0.0",
+  "description": "Unified Vercel Monorepo Build",
+  "scripts": {
+    "vercel-build": "bash vercel-build.sh"
+  }
+}
