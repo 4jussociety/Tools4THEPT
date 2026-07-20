@@ -283,41 +283,21 @@ WHERE s.owner_id IS NOT NULL
 -- UPDATE public.appointments SET system_id = '여기에_실제_system_id_입력' WHERE system_id IS NULL;
 
 -- ============================================
--- 6. system_id 자동 완성 트리거 (프론트엔드 유실 방어벽)
+-- 6. 데이터 무결성 강제 (유령 데이터 생성 원천 차단)
 -- ============================================
 
--- clients 자동 system_id 삽입 트리거 함수
-CREATE OR REPLACE FUNCTION public.set_client_system_id()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.system_id IS NULL THEN
-    NEW.system_id := (SELECT public.get_my_system_ids() LIMIT 1);
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
+-- 과거에 설치했던 'system_id 강제 주입 트리거'를 모두 제거합니다.
+-- 소속(system_id)이 누락된 비정상 요청이 들어오면 억지로 채우지 않고 에러를 발생(저장 차단)시켜 데이터 무결성을 보호합니다.
 DROP TRIGGER IF EXISTS tr_set_client_system_id ON public.clients;
-CREATE TRIGGER tr_set_client_system_id
-  BEFORE INSERT ON public.clients
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_client_system_id();
-
--- appointments 자동 system_id 삽입 트리거 함수
-CREATE OR REPLACE FUNCTION public.set_appointment_system_id()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.system_id IS NULL THEN
-    NEW.system_id := (SELECT public.get_my_system_ids() LIMIT 1);
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+DROP FUNCTION IF EXISTS public.set_client_system_id();
 
 DROP TRIGGER IF EXISTS tr_set_appointment_system_id ON public.appointments;
-CREATE TRIGGER tr_set_appointment_system_id
-  BEFORE INSERT ON public.appointments
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_appointment_system_id();
+DROP FUNCTION IF EXISTS public.set_appointment_system_id();
+
+-- [권장] 스키마 레벨에서 system_id를 필수값(NOT NULL)으로 강제합니다.
+-- (단, 이 구문을 실행하려면 기존 데이터 중에 system_id가 NULL인 레코드가 없어야 합니다.)
+-- ALTER TABLE public.clients ALTER COLUMN system_id SET NOT NULL;
+-- ALTER TABLE public.appointments ALTER COLUMN system_id SET NOT NULL;
+-- ALTER TABLE public.sessions ALTER COLUMN system_id SET NOT NULL;
 
 COMMIT;
