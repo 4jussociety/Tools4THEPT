@@ -277,4 +277,43 @@ DROP FUNCTION IF EXISTS public.set_appointment_system_id();
 -- ALTER TABLE public.appointments ALTER COLUMN system_id SET NOT NULL;
 -- ALTER TABLE public.sessions ALTER COLUMN system_id SET NOT NULL;
 
+-- ============================================
+-- 7. 대시보드(Dashboard) 앱 전용 레거시 RLS 정책 복구
+-- (1번 단계에서 일괄 삭제된 상황판 테이블들의 접근 권한을 다시 열어줍니다)
+-- ============================================
+
+-- beds
+CREATE POLICY "beds_owner_select" ON public.beds FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "beds_owner_insert" ON public.beds FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "beds_owner_update" ON public.beds FOR UPDATE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "beds_owner_delete" ON public.beds FOR DELETE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "beds_viewer_select" ON public.beds FOR SELECT TO anon USING (true);
+
+-- treatment_types
+CREATE POLICY "treatment_types_owner_select" ON public.treatment_types FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "treatment_types_owner_insert" ON public.treatment_types FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "treatment_types_owner_update" ON public.treatment_types FOR UPDATE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "treatment_types_owner_delete" ON public.treatment_types FOR DELETE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "treatment_types_viewer_select" ON public.treatment_types FOR SELECT TO anon USING (true);
+
+-- treatment_history
+CREATE POLICY "treatment_history_owner_select" ON public.treatment_history FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "treatment_history_owner_insert" ON public.treatment_history FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "treatment_history_owner_update" ON public.treatment_history FOR UPDATE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "treatment_history_owner_delete" ON public.treatment_history FOR DELETE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "treatment_history_viewer_select" ON public.treatment_history FOR SELECT TO anon USING (true);
+
+-- layout_settings
+CREATE POLICY "layout_settings_owner_select" ON public.layout_settings FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "layout_settings_owner_insert" ON public.layout_settings FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "layout_settings_owner_update" ON public.layout_settings FOR UPDATE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "layout_settings_viewer_select" ON public.layout_settings FOR SELECT TO anon USING (true);
+
+-- layout_objects
+CREATE POLICY "layout_objects_owner_select" ON public.layout_objects FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "layout_objects_owner_insert" ON public.layout_objects FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "layout_objects_owner_update" ON public.layout_objects FOR UPDATE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "layout_objects_owner_delete" ON public.layout_objects FOR DELETE TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY "layout_objects_viewer_select" ON public.layout_objects FOR SELECT TO anon USING (true);
+
 COMMIT;
