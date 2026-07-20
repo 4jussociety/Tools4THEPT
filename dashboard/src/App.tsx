@@ -114,10 +114,8 @@ function App() {
       <header className="mb-2 md:mb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-3 bg-white p-2 px-3 md:p-3 md:px-4 rounded-xl md:rounded-2xl shadow-sm border border-slate-200">
         <div className="flex flex-col gap-1.5 w-full md:w-auto">
           <div className="flex flex-row items-center justify-between md:justify-start gap-2 md:gap-4 w-full">
-            <div className="flex items-baseline">
-              <span className="text-2xl md:text-4xl font-black text-slate-800 tracking-tight whitespace-nowrap leading-tight">상황판</span>
-              <span className="text-xs md:text-sm font-bold text-slate-400 italic">for</span>
-              <ThePtLogo className="text-slate-900 !text-lg md:!text-xl" style={{ top: '0' }} />
+            <div className="flex items-center">
+              <ThePtLogo prefix="상황판" className="text-[2.0em] md:text-[2.8em]" />
             </div>
             <nav className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0">
               <a
