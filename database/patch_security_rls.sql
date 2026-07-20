@@ -246,9 +246,10 @@ CREATE POLICY "Allow authenticated select from audio-records"
   USING (bucket_id = 'audio-records');
 
 -- ============================================
--- 5. 기존 데이터 소급 마이그레이션 (소속 system_id 일괄 매핑)
+-- 5. 기존 데이터 소급 마이그레이션 (과거 구조 완벽 호환)
 -- ============================================
--- profiles 테이블의 system_id가 NULL인 경우, system_members의 system_id로 자동 채워줍니다.
+
+-- 5-1. profiles 테이블의 system_id가 NULL인 경우, system_members의 system_id로 자동 채워줍니다.
 UPDATE public.profiles p
 SET system_id = m.system_id
 FROM public.system_members m
@@ -256,11 +257,30 @@ WHERE p.id = m.user_id
   AND p.system_id IS NULL 
   AND m.status = 'approved';
 
+-- 5-2. (핵심 원인 해결) 과거 방식으로 생성되어 profiles에만 system_id가 있고 system_members에는 누락된 멤버 복구
+INSERT INTO public.system_members (system_id, user_id, status, role)
+SELECT p.system_id, p.id, 'approved', 'staff'
+FROM public.profiles p
+WHERE p.system_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.system_members m 
+    WHERE m.user_id = p.id AND m.system_id = p.system_id
+  );
+
+-- 5-3. systems 생성자(owner)이면서 system_members에 누락된 경우 복구
+INSERT INTO public.system_members (system_id, user_id, status, role)
+SELECT s.id, s.owner_id, 'approved', 'owner'
+FROM public.systems s
+WHERE s.owner_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.system_members m 
+    WHERE m.user_id = s.owner_id AND m.system_id = s.id
+  );
+
 -- ⚠️ [알림] 혹시 기존 고객(clients) 및 예약(appointments) 테이블에 system_id가 NULL인 경우:
 -- 아래 구문을 사용하여 적절한 system_id로 일괄 채워주셔야 화면에 나타납니다.
 -- UPDATE public.clients SET system_id = '여기에_실제_system_id_입력' WHERE system_id IS NULL;
 -- UPDATE public.appointments SET system_id = '여기에_실제_system_id_입력' WHERE system_id IS NULL;
-
 
 -- ============================================
 -- 6. system_id 자동 완성 트리거 (프론트엔드 유실 방어벽)
