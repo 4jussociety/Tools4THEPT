@@ -2,15 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAppointments, createAppointment, getClients, getProfiles, updateAppointment, deleteAppointment, updateProfile, getMonthlyAppointments, updateClient, getAppointmentsByClient, getTicketPackages, getGlobalAds } from './api'
 import { createClient } from '@/features/clients/api'
 
-/** 고객 목록 조회 훅 */
-export function useClients() {
-    return useQuery({
-        queryKey: ['clients'],
-        queryFn: () => getClients(),
-        staleTime: 2 * 60 * 1000, // 2분 캐싱
-        refetchOnWindowFocus: false,
-    })
-}
 
 /** 패키지 상품 목록 조회 훅 */
 export function useTicketPackages(systemId?: string | null) {
