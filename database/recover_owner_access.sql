@@ -17,12 +17,19 @@ SET system_id = (
     SELECT s.id FROM public.systems s WHERE s.owner_id = p.id LIMIT 1
 );
 
--- 3. ★핵심 복구★: 본인의 1인 센터에 '최고 관리자(owner)' 권한으로 다시 멤버 등록을 해줍니다.
--- (기존에 staff 로 되어 있어서 리셋 때 날아간 권한을 owner로 격상시켜 복구)
+-- 3. ★핵심 복구★: ON CONFLICT 에러를 피하기 위해, 아직 등록되지 않은 경우에만 안전하게 INSERT 합니다.
 INSERT INTO public.system_members (system_id, user_id, status, role)
 SELECT s.id, s.owner_id, 'approved', 'owner'
 FROM public.systems s
-ON CONFLICT (system_id, user_id) 
-DO UPDATE SET role = 'owner', status = 'approved';
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.system_members sm 
+    WHERE sm.system_id = s.id AND sm.user_id = s.owner_id
+);
+
+-- 이미 등록된 찌꺼기가 남아있을 경우를 대비해 무조건 owner로 강제 업데이트(격상) 합니다.
+UPDATE public.system_members sm
+SET role = 'owner', status = 'approved'
+FROM public.systems s
+WHERE sm.system_id = s.id AND sm.user_id = s.owner_id;
 
 COMMIT;
