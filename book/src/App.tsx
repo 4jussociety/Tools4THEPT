@@ -11,7 +11,7 @@ import ProfilePage from './features/profile/ProfilePage'
 import CenterSettingsPage from './features/admin/CenterSettingsPage'
 import SuperAdminPage from './features/admin/SuperAdminPage'
 import ChartingPage from './features/charting/ChartingPage'
-import PortalPage from './features/auth/PortalPage'
+import PortalPage from './features/portal/PortalPage'
 
 import RootLayout from './components/layout/RootLayout'
 
@@ -21,15 +21,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter basename="/book">
+        <BrowserRouter>
           <Routes>
-            {/* 통합 로그인 & 서비스 선택 메인 포털 */}
-            <Route path="/portal" element={<PortalPage />} />
-            <Route path="/login" element={<PortalPage />} />
+            {/* 통합 로그인 & 서비스 선택 메인 포털을 루트로 격상 */}
+            <Route path="/" element={<PortalPage />} />
+            <Route path="/portal" element={<Navigate to="/" replace />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
 
             <Route element={<RequireAuth />}>
               <Route element={<RootLayout />}>
-                <Route path="/" element={<Navigate to="/calendar" replace />} />
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/clients" element={<ClientList />} />
                 <Route path="/charting" element={<ChartingPage />} />
