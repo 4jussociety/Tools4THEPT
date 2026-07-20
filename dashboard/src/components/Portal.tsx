@@ -260,11 +260,7 @@ export function Portal({ initialView }: PortalProps) {
               {/* 서비스 2: 스케줄 및 AI 임상 차팅 */}
               <button
                 onClick={() => {
-                  const hostname = window.location.hostname;
-                  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.');
-                  const calendarBase = isLocal 
-                    ? `${window.location.protocol}//${hostname}:5174/book/calendar` 
-                    : `${window.location.origin}/book/calendar`;
+                  const calendarBase = `${window.location.origin}/book/calendar`;
                   if (session?.access_token && session?.refresh_token) {
                     window.location.href = `${calendarBase}#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
                   } else {
