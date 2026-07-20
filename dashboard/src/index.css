@@ -1,9 +1,0 @@
-@import url('https://fonts.cdnfonts.com/css/glacial-indifference');
-@import "tailwindcss";
-
-@layer base {
-  body {
-    background-color: var(--color-slate-50);
-    color: var(--color-slate-900);
-  }
-}
