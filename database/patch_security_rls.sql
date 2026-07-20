@@ -261,4 +261,43 @@ WHERE p.id = m.user_id
 -- UPDATE public.clients SET system_id = '여기에_실제_system_id_입력' WHERE system_id IS NULL;
 -- UPDATE public.appointments SET system_id = '여기에_실제_system_id_입력' WHERE system_id IS NULL;
 
+
+-- ============================================
+-- 6. system_id 자동 완성 트리거 (프론트엔드 유실 방어벽)
+-- ============================================
+
+-- clients 자동 system_id 삽입 트리거 함수
+CREATE OR REPLACE FUNCTION public.set_client_system_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.system_id IS NULL THEN
+    NEW.system_id := (SELECT public.get_my_system_ids() LIMIT 1);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_set_client_system_id ON public.clients;
+CREATE TRIGGER tr_set_client_system_id
+  BEFORE INSERT ON public.clients
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_client_system_id();
+
+-- appointments 자동 system_id 삽입 트리거 함수
+CREATE OR REPLACE FUNCTION public.set_appointment_system_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.system_id IS NULL THEN
+    NEW.system_id := (SELECT public.get_my_system_ids() LIMIT 1);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_set_appointment_system_id ON public.appointments;
+CREATE TRIGGER tr_set_appointment_system_id
+  BEFORE INSERT ON public.appointments
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_appointment_system_id();
+
 COMMIT;
