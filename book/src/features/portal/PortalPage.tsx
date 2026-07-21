@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Mic, LogOut, User, Sparkles, UserPlus, LogIn, CheckCircle2, AlertCircle } from 'lucide-react'
+import { LayoutDashboard, Mic, LogOut, User, Sparkles, UserPlus, LogIn, CheckCircle2, AlertCircle, Crown } from 'lucide-react'
 
 export function PortalPage() {
     const { session } = useAuth()
@@ -146,7 +146,7 @@ export function PortalPage() {
                         이동하실 서비스를 선택해 주세요
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mb-8">
                         {/* 서비스 카드 1: 재활/레슨실 상황판 */}
                         <button
                             onClick={handleNavigateDashboard}
@@ -172,6 +172,20 @@ export function PortalPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors">스케줄 & AI 임상 차팅</h3>
                             <p className="text-xs text-slate-500 leading-relaxed">
                                 고객과의 대화 음성을 인식(STT)하여 SOAP 임상 노트 및 도수재활세션 기록지를 1화면에서 자동 생성합니다.
+                            </p>
+                        </button>
+
+                        {/* 서비스 카드 3: 구독 및 요금제 관리 */}
+                        <button
+                            onClick={() => { navigate('/subscription'); }}
+                            className="flex flex-col text-left p-6 bg-white hover:bg-purple-50/30 border border-slate-200 hover:border-purple-500/50 rounded-2xl transition-all duration-300 group hover:-translate-y-1 shadow-md hover:shadow-purple-500/10 cursor-pointer"
+                        >
+                            <div className="w-12 h-12 bg-purple-50 border border-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Crown size={24} />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-800 mb-2 group-hover:text-purple-600 transition-colors">구독 요금제 관리</h3>
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                                AI 차팅 분석 서비스의 요금제 변경, 잔여 크레딧 확인 및 정기결제 구독 상태를 관리합니다.
                             </p>
                         </button>
                     </div>

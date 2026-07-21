@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { SessionResult } from '../types/charting';
 import { formatKST } from '@/lib/dateUtils';
 import { useAuth } from '@/features/auth/AuthContext';
+import { QuotaWidget } from '../../subscription/components/QuotaWidget';
 
 interface AudioUploadFormProps {
   clientId?: string;
@@ -169,6 +170,13 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
     if (!selectedFile) {
       setErrorMessage('분석할 음성 파일을 등록해 주세요.');
       return;
+    }
+    
+    // 할당량 체크 로직 추가
+    const { data: profData } = await supabase.from('profiles').select('quota_used, quota_limit').eq('id', profile?.id).single();
+    if (profData && profData.quota_limit - profData.quota_used <= 0) {
+        setErrorMessage('AI 분석 할당량이 부족합니다. 요금제를 업그레이드 해주세요.');
+        return;
     }
 
     setIsAnalyzing(true);
@@ -340,6 +348,8 @@ export const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
           <span>녹음 가이드</span>
         </button>
       </div>
+      
+      <QuotaWidget />
 
       {errorMessage && (
         <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-lg">

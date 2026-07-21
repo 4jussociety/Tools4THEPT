@@ -12,6 +12,7 @@ import CenterSettingsPage from './features/admin/CenterSettingsPage'
 import SuperAdminPage from './features/admin/SuperAdminPage'
 import ChartingPage from './features/charting/ChartingPage'
 import PortalPage from './features/portal/PortalPage'
+import { SubscriptionPage } from './features/subscription/SubscriptionPage'
 
 import RootLayout from './components/layout/RootLayout'
 
@@ -35,6 +36,7 @@ function App() {
                 <Route path="/charting" element={<ChartingPage />} />
                 <Route path="/charting/history" element={<Navigate to="/charting?tab=history" replace />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/subscription" element={<SubscriptionPage />} />
 
                 {/* 매니저 전용 라우트 */}
                 <Route element={<RequireOwner />}>
