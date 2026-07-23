@@ -44,22 +44,15 @@ export const SubscriptionPage: React.FC = () => {
       return;
     }
     
-    // 그로블 결제 링크 (아직 미정이므로 Placeholder 코드 사용)
-    const grobleLinks = {
-      basic: 'https://groble.im/payment/BASIC_CODE_HERE',
-      premium: 'https://groble.im/payment/PREMIUM_CODE_HERE',
-      enterprise: 'https://groble.im/payment/ENTERPRISE_CODE_HERE'
-    };
-    
-    const url = `${grobleLinks[tier]}?buyer_email=${encodeURIComponent(profile.email)}`;
+    // 그로블 결제 링크 (통합 상품 링크)
+    const GROBLE_PRODUCT_URL = 'https://www.groble.im/products/R6VzGx';
     
     if (tier === 'enterprise') {
-      // 엔터프라이즈는 보통 문의하기 폼이나 별도 결제 링크로 안내
       alert('엔터프라이즈 요금제는 도입 문의가 필요합니다. 고객센터로 연결됩니다.');
-      // window.location.href = 'mailto:contact@4thept.com';
       return;
     }
-    
+
+    const url = `${GROBLE_PRODUCT_URL}?buyer_email=${encodeURIComponent(profile.email)}`;
     window.open(url, '_blank');
   };
 
